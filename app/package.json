@@ -1,0 +1,14 @@
+{
+  "name": "paleteria-pos-app",
+  "version": "1.0.0",
+  "description": "Paleteria Nopalucan POS",
+  "main": "main.js",
+
+  "scripts": {
+    "dev": "electron ."
+  },
+
+  "dependencies": {
+    "electron": "^41.5.0"
+  }
+}

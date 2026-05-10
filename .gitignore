@@ -1,0 +1,50 @@
+# NODE
+node_modules/
+
+# ENV
+.env
+
+# LOGS
+logs
+*.log
+npm-debug.log*
+
+# ELECTRON
+dist/
+build/
+out/
+
+# VSCODE
+.vscode/
+
+# MAC
+.DS_Store
+
+# WINDOWS
+Thumbs.db
+
+# CACHE
+.cache/
+
+# TEMP
+tmp/
+temp/
+
+# PACKAGE LOCK OPTIONAL
+package-lock.json
+
+# SQLITE
+*.sqlite
+*.db
+
+# VERCEL
+.vercel/
+
+# PRISMA
+prisma/dev.db
+
+# COVERAGE
+coverage/
+
+# ELECTRON BUILDER
+release/

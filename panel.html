@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'"
+  />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>Paleteria Nopalucan POS</title>
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- FONT -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <div class="sidebar-header">
+
+        <img
+          src="./images/logo-paleteria.png"
+          alt="Logo"
+          class="logo"
+        >
+
+        <div>
+          <h2>Paletería</h2>
+          <p>Nopalucan POS</p>
+        </div>
+
+      </div>
+
+      <div class="menu-title">
+        Menú principal
+      </div>
+
+      <button class="category active" data-section="productos">
+        📦 Productos
+      </button>
+
+      <button class="category" data-section="materia-prima">
+        🥛 Materia Prima
+      </button>
+
+      <button class="category" data-section="clientes">
+        👥 Clientes
+      </button>
+
+      <button class="category" data-section="proveedores">
+        🚚 Proveedores
+      </button>
+
+      <button class="category" data-section="configuracion">
+        ⚙️ Configuración
+      </button>
+
+      <div class="sidebar-footer">
+
+        <div class="status-dot"></div>
+
+        Sistema activo
+
+      </div>
+
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- PRODUCTOS -->
+      <section class="section active-section" id="productos">
+
+        <div class="topbar">
+
+          <div>
+            <h1>Productos</h1>
+            <span>Administra tus productos</span>
+          </div>
+
+          <button class="add-btn" data-type="producto">
+            + Nuevo producto
+          </button>
+
+        </div>
+
+        <div class="products" id="products-container">
+
+          <div class="empty-state">
+
+            <h3>No hay productos registrados</h3>
+
+            <p>
+              Agrega tu primer producto para comenzar
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- MATERIA PRIMA -->
+      <section class="section" id="materia-prima">
+
+        <div class="topbar">
+
+          <div>
+            <h1>Materia Prima</h1>
+            <span>Control de ingredientes e insumos</span>
+          </div>
+
+          <button class="add-btn" data-type="materia">
+            + Nueva materia prima
+          </button>
+
+        </div>
+
+        <div class="table-container">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Stock</th>
+                <th>Unidad</th>
+              </tr>
+            </thead>
+
+            <tbody id="materia-container">
+
+              <tr class="empty-row">
+                <td colspan="3">
+                  No hay materia prima registrada
+                </td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </section>
+
+      <!-- CLIENTES -->
+      <section class="section" id="clientes">
+
+        <div class="topbar">
+
+          <div>
+            <h1>Clientes</h1>
+            <span>Administra tus clientes</span>
+          </div>
+
+          <button class="add-btn" data-type="cliente">
+            + Nuevo cliente
+          </button>
+
+        </div>
+
+        <div class="table-container">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Puntos</th>
+              </tr>
+            </thead>
+
+            <tbody id="clientes-container">
+
+              <tr class="empty-row">
+                <td colspan="3">
+                  No hay clientes registrados
+                </td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </section>
+
+      <!-- PROVEEDORES -->
+      <section class="section" id="proveedores">
+
+        <div class="topbar">
+
+          <div>
+            <h1>Proveedores</h1>
+            <span>Control de proveedores</span>
+          </div>
+
+          <button class="add-btn" data-type="proveedor">
+            + Nuevo proveedor
+          </button>
+
+        </div>
+
+        <div class="table-container">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Proveedor</th>
+                <th>Contacto</th>
+                <th>Teléfono</th>
+              </tr>
+            </thead>
+
+            <tbody id="proveedores-container">
+
+              <tr class="empty-row">
+                <td colspan="3">
+                  No hay proveedores registrados
+                </td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </section>
+
+      <!-- CONFIGURACION -->
+      <section class="section" id="configuracion">
+
+        <div class="topbar">
+
+          <div>
+            <h1>Configuración</h1>
+            <span>Administra la aplicación</span>
+          </div>
+
+        </div>
+
+        <div class="settings-grid">
+
+          <div class="setting-card">
+            <h3>🖨️ Impresora</h3>
+            <p>Configurar impresora de tickets</p>
+          </div>
+
+          <div class="setting-card">
+            <h3>💳 Pagos</h3>
+            <p>Configurar métodos de pago</p>
+          </div>
+
+          <div class="setting-card">
+            <h3>👤 Usuarios</h3>
+            <p>Administrar usuarios y permisos</p>
+          </div>
+
+          <div class="setting-card">
+            <h3>🏪 Negocio</h3>
+            <p>Información del negocio</p>
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- CART -->
+    <aside class="cart">
+
+      <div class="cart-header">
+
+        <h2>🧾 Ticket</h2>
+
+        <span>#0001</span>
+
+      </div>
+
+      <div class="cart-items">
+
+        <div class="empty-state">
+
+          <h3>Sin productos</h3>
+
+          <p>
+            Agrega productos al ticket
+          </p>
+
+        </div>
+
+      </div>
+
+      <div class="cart-total">
+
+        <div class="total-row">
+          <span>Subtotal</span>
+          <span>$0</span>
+        </div>
+
+        <div class="total-row final">
+          <span>Total</span>
+          <span>$0</span>
+        </div>
+
+      </div>
+
+      <div class="cart-buttons">
+
+        <button class="pay-btn cash">
+          💵 Efectivo
+        </button>
+
+        <button class="pay-btn card">
+          💳 Tarjeta
+        </button>
+
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal" id="modal">
+
+    <div class="modal-content">
+
+      <div class="modal-header">
+
+        <h2 id="modal-title">
+          Nuevo Registro
+        </h2>
+
+        <button id="close-modal">
+          ✕
+        </button>
+
+      </div>
+
+      <div id="modal-body"></div>
+
+    </div>
+
+  </div>
+
+  <script src="renderer.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/* PRODUCTOS */
+
+model Producto {
+
+  id          Int      @id @default(autoincrement())
+
+  nombre      String
+
+  precio      Float
+
+  categoria   String
+
+  stock       Int      @default(0)
+
+  createdAt   DateTime @default(now())
+}
+
+/* CLIENTES */
+
+model Cliente {
+
+  id          Int      @id @default(autoincrement())
+
+  nombre      String
+
+  telefono    String?
+
+  puntos      Int      @default(0)
+
+  createdAt   DateTime @default(now())
+}
+
+/* PROVEEDORES */
+
+model Proveedor {
+
+  id          Int      @id @default(autoincrement())
+
+  nombre      String
+
+  contacto    String?
+
+  telefono    String?
+
+  createdAt   DateTime @default(now())
+}
+
+/* MATERIA PRIMA */
+
+model MateriaPrima {
+
+  id          Int      @id @default(autoincrement())
+
+  nombre      String
+
+  stock       Float
+
+  unidad      String
+
+  createdAt   DateTime @default(now())
+}
+
+/* VENTAS */
+
+model Venta {
+
+  id            Int      @id @default(autoincrement())
+
+  total         Float
+
+  metodoPago    String
+
+  createdAt     DateTime @default(now())
+}

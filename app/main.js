@@ -11,6 +11,7 @@ const createWindow = () => {
     minHeight: 700,
     autoHideMenuBar: true,
     backgroundColor: '#f5f5f5',
+    icon: path.join(__dirname, 'build', 'icon.ico'),
 
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

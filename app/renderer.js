@@ -665,7 +665,8 @@ const renderProductos = (productos) => {
 
   if (!productos.length) {
     productsContainer.innerHTML = `
-      <div class="empty-state">
+      <div class="empty-state product-empty-state">
+        <div class="product-empty-icon" aria-hidden="true"></div>
         <h3>No hay productos registrados</h3>
         <p>Agrega tu primer producto para comenzar</p>
       </div>

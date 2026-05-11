@@ -30,9 +30,6 @@ Thumbs.db
 tmp/
 temp/
 
-# PACKAGE LOCK OPTIONAL
-package-lock.json
-
 # SQLITE
 *.sqlite
 *.db

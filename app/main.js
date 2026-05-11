@@ -11,12 +11,13 @@ const createWindow = () => {
     backgroundColor: '#f5f5f5',
 
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true
     }
   })
 
-  win.loadFile('panel.html')
+  win.loadFile(path.join(__dirname, 'panel.html'))
 }
 
 app.whenReady().then(() => {

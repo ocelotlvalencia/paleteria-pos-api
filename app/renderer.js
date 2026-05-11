@@ -60,7 +60,7 @@ document.querySelectorAll('.add-btn').forEach(button => {
         </div>
 
         <div class="form-group">
-          <label>Categoría</label>
+          <label>Categor&iacute;a</label>
 
           <select>
             <option>Paletas</option>
@@ -121,7 +121,7 @@ document.querySelectorAll('.add-btn').forEach(button => {
         </div>
 
         <div class="form-group">
-          <label>Teléfono</label>
+          <label>Tel&eacute;fono</label>
           <input type="text" placeholder="2481234567">
         </div>
 
@@ -149,7 +149,7 @@ document.querySelectorAll('.add-btn').forEach(button => {
         </div>
 
         <div class="form-group">
-          <label>Teléfono</label>
+          <label>Tel&eacute;fono</label>
           <input type="text" placeholder="2221234567">
         </div>
 

@@ -6,7 +6,7 @@
 
   <meta
     http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self'"
+    content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:"
   />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -14,15 +14,6 @@
   <title>Paleteria Nopalucan POS</title>
 
   <link rel="stylesheet" href="styles.css">
-
-  <!-- FONT -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    rel="stylesheet"
-  >
 </head>
 
 <body>
@@ -41,34 +32,34 @@
         >
 
         <div>
-          <h2>Paletería</h2>
+          <h2>Paleter&iacute;a</h2>
           <p>Nopalucan POS</p>
         </div>
 
       </div>
 
       <div class="menu-title">
-        Menú principal
+        Men&uacute; principal
       </div>
 
       <button class="category active" data-section="productos">
-        📦 Productos
+        Productos
       </button>
 
       <button class="category" data-section="materia-prima">
-        🥛 Materia Prima
+        Materia Prima
       </button>
 
       <button class="category" data-section="clientes">
-        👥 Clientes
+        Clientes
       </button>
 
       <button class="category" data-section="proveedores">
-        🚚 Proveedores
+        Proveedores
       </button>
 
       <button class="category" data-section="configuracion">
-        ⚙️ Configuración
+        Configuraci&oacute;n
       </button>
 
       <div class="sidebar-footer">
@@ -183,7 +174,7 @@
             <thead>
               <tr>
                 <th>Nombre</th>
-                <th>Teléfono</th>
+                <th>Tel&eacute;fono</th>
                 <th>Puntos</th>
               </tr>
             </thead>
@@ -228,7 +219,7 @@
               <tr>
                 <th>Proveedor</th>
                 <th>Contacto</th>
-                <th>Teléfono</th>
+                <th>Tel&eacute;fono</th>
               </tr>
             </thead>
 
@@ -254,8 +245,8 @@
         <div class="topbar">
 
           <div>
-            <h1>Configuración</h1>
-            <span>Administra la aplicación</span>
+            <h1>Configuraci&oacute;n</h1>
+            <span>Administra la aplicaci&oacute;n</span>
           </div>
 
         </div>
@@ -263,23 +254,23 @@
         <div class="settings-grid">
 
           <div class="setting-card">
-            <h3>🖨️ Impresora</h3>
+            <h3>Impresora</h3>
             <p>Configurar impresora de tickets</p>
           </div>
 
           <div class="setting-card">
-            <h3>💳 Pagos</h3>
-            <p>Configurar métodos de pago</p>
+            <h3>Pagos</h3>
+            <p>Configurar m&eacute;todos de pago</p>
           </div>
 
           <div class="setting-card">
-            <h3>👤 Usuarios</h3>
+            <h3>Usuarios</h3>
             <p>Administrar usuarios y permisos</p>
           </div>
 
           <div class="setting-card">
-            <h3>🏪 Negocio</h3>
-            <p>Información del negocio</p>
+            <h3>Negocio</h3>
+            <p>Informaci&oacute;n del negocio</p>
           </div>
 
         </div>
@@ -293,7 +284,7 @@
 
       <div class="cart-header">
 
-        <h2>🧾 Ticket</h2>
+        <h2>Ticket</h2>
 
         <span>#0001</span>
 
@@ -330,11 +321,11 @@
       <div class="cart-buttons">
 
         <button class="pay-btn cash">
-          💵 Efectivo
+          Efectivo
         </button>
 
         <button class="pay-btn card">
-          💳 Tarjeta
+          Tarjeta
         </button>
 
       </div>
@@ -355,7 +346,7 @@
         </h2>
 
         <button id="close-modal">
-          ✕
+          &times;
         </button>
 
       </div>

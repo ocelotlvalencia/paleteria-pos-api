@@ -5,6 +5,7 @@ const path = require('path')
 let mainWindow
 const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
 const DEFAULT_THEME = 'light'
+const isProductionBuild = app.isPackaged
 
 const getInstallConfigPath = () => {
   if (!app.isPackaged) {
@@ -123,9 +124,29 @@ const createWindow = () => {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      devTools: !isProductionBuild
     }
   })
+
+  if (isProductionBuild) {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      const key = input.key.toLowerCase()
+      const isDevToolsShortcut =
+        key === 'f12' ||
+        (input.control && input.shift && key === 'i') ||
+        (input.control && input.shift && key === 'j') ||
+        (input.control && input.shift && key === 'c')
+
+      if (isDevToolsShortcut) {
+        event.preventDefault()
+      }
+    })
+
+    mainWindow.webContents.on('devtools-opened', () => {
+      mainWindow.webContents.closeDevTools()
+    })
+  }
 
   mainWindow.loadFile(path.join(__dirname, 'panel.html'))
 

@@ -259,6 +259,12 @@ body {
   display: block;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* BUTTON */
 
 .add-btn {
@@ -281,6 +287,35 @@ body {
 }
 
 .add-btn:hover {
+  transform: scale(1.02);
+}
+
+.icon-action-btn {
+  border: none;
+
+  width: 56px;
+  height: 56px;
+
+  border-radius: 18px;
+
+  background: #fde7f0;
+
+  color: #DE0B5B;
+
+  font-size: 22px;
+
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: 0.2s;
+}
+
+.icon-action-btn:hover {
+  background: #fbd0e1;
+
   transform: scale(1.02);
 }
 
@@ -1101,6 +1136,33 @@ td small {
   text-align: left;
 }
 
+.monthly-report-dialog {
+  width: min(760px, calc(100vw - 40px));
+
+  text-align: left;
+}
+
+.monthly-report-dialog h2,
+.monthly-report-dialog p {
+  text-align: center;
+}
+
+.monthly-report-table {
+  margin-top: 20px;
+
+  max-height: 420px;
+
+  overflow: auto;
+}
+
+.monthly-report-table table {
+  min-width: 560px;
+}
+
+.monthly-report-table td strong {
+  color: inherit;
+}
+
 .ticket-dialog h2 {
   text-align: center;
 }
@@ -1720,6 +1782,16 @@ body.dark-mode .custom-select-option.selected {
   background: #DE0B5B;
 
   color: white;
+}
+
+body.dark-mode .icon-action-btn {
+  background: rgba(222,11,91,0.18);
+
+  color: #f9fafb;
+}
+
+body.dark-mode .icon-action-btn:hover {
+  background: rgba(222,11,91,0.28);
 }
 
 body.dark-mode thead {

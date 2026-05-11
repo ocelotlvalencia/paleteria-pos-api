@@ -72,8 +72,12 @@ Para agregar materia prima:
 
 1. Entra a **Materia Prima**.
 2. Presiona **+ Nueva materia prima**.
-3. Captura nombre, stock, unidad y proveedor.
+3. Captura nombre, stock, unidad, costo de compra y proveedor.
 4. Presiona **Guardar materia prima**.
+
+El costo de compra se registra automaticamente en **Corte de caja** como un gasto con categoria **Insumos**.
+
+Si eliminas una materia prima, el gasto generado se conserva en **Corte de caja** como historial.
 
 Las unidades disponibles son:
 
@@ -160,6 +164,8 @@ Para registrar un gasto:
 4. Presiona **Guardar gasto**.
 
 Puedes editar o eliminar gastos desde los botones de accion en la tabla.
+
+El boton de resumen mensual muestra un modal con ventas, gastos y saldo agrupados por mes.
 
 ## 10. Proveedores
 

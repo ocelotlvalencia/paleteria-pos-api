@@ -73,9 +73,15 @@ model MateriaPrima {
 
   unidad      String
 
+  costo       Float    @default(0)
+
   proveedorId Int?
 
   proveedor   Proveedor? @relation(fields: [proveedorId], references: [id], onDelete: SetNull)
+
+  gastoId     Int?     @unique
+
+  gasto       Gasto?   @relation(fields: [gastoId], references: [id], onDelete: SetNull)
 
   createdAt   DateTime @default(now())
 }
@@ -116,6 +122,8 @@ model Gasto {
   monto         Float
 
   notas         String?
+
+  materiaPrima MateriaPrima?
 
   createdAt     DateTime @default(now())
 }

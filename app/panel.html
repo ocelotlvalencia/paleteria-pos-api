@@ -160,6 +160,7 @@
                 <th>Nombre</th>
                 <th>Stock</th>
                 <th>Unidad</th>
+                <th>Costo</th>
                 <th>Proveedor</th>
                 <th>Acciones</th>
               </tr>
@@ -168,7 +169,7 @@
             <tbody id="materia-container">
 
               <tr class="empty-row">
-                <td colspan="5">
+                <td colspan="6">
                   No hay materia prima registrada
                 </td>
               </tr>
@@ -324,9 +325,15 @@
             <span>Control de ventas, gastos y saldo</span>
           </div>
 
-          <button class="add-btn" data-type="gasto">
-            + Nuevo gasto
-          </button>
+          <div class="topbar-actions">
+            <button class="icon-action-btn" id="monthly-cash-report" type="button" title="Resumen mensual" aria-label="Resumen mensual">
+              &#128197;
+            </button>
+
+            <button class="add-btn" data-type="gasto">
+              + Nuevo gasto
+            </button>
+          </div>
 
         </div>
 

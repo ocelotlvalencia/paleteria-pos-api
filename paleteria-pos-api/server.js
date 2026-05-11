@@ -165,7 +165,8 @@ app.delete('/api/productos/:id', asyncHandler(async (req, res) => {
 app.get('/api/materia-prima', asyncHandler(async (req, res) => {
   const materiaPrima = await prisma.materiaPrima.findMany({
     include: {
-      proveedor: true
+      proveedor: true,
+      gasto: true
     },
     orderBy: { createdAt: 'desc' }
   })
@@ -174,29 +175,78 @@ app.get('/api/materia-prima', asyncHandler(async (req, res) => {
 }))
 
 app.post('/api/materia-prima', asyncHandler(async (req, res) => {
-  const materiaPrima = await prisma.materiaPrima.create({
-    data: {
-      nombre: req.body.nombre,
-      stock: toNumber(req.body.stock),
-      unidad: req.body.unidad,
-      proveedorId: toOptionalNumber(req.body.proveedorId)
-    }
+  const costo = toNumber(req.body.costo)
+  const materiaPrima = await prisma.$transaction(async (tx) => {
+    const gasto = await tx.gasto.create({
+      data: {
+        concepto: `Materia prima: ${req.body.nombre}`,
+        categoria: 'Insumos',
+        monto: costo,
+        notas: 'Gasto generado automaticamente desde Materia Prima'
+      }
+    })
+
+    return tx.materiaPrima.create({
+      data: {
+        nombre: req.body.nombre,
+        stock: toNumber(req.body.stock),
+        unidad: req.body.unidad,
+        costo,
+        proveedorId: toOptionalNumber(req.body.proveedorId),
+        gastoId: gasto.id
+      },
+      include: {
+        proveedor: true,
+        gasto: true
+      }
+    })
   })
 
   res.status(201).json(materiaPrima)
 }))
 
 app.put('/api/materia-prima/:id', asyncHandler(async (req, res) => {
-  const materiaPrima = await prisma.materiaPrima.update({
-    where: {
-      id: toNumber(req.params.id)
-    },
-    data: {
-      nombre: req.body.nombre,
-      stock: toNumber(req.body.stock),
-      unidad: req.body.unidad,
-      proveedorId: toOptionalNumber(req.body.proveedorId)
-    }
+  const id = toNumber(req.params.id)
+  const costo = toNumber(req.body.costo)
+  const materiaPrima = await prisma.$transaction(async (tx) => {
+    const current = await tx.materiaPrima.findUnique({
+      where: { id }
+    })
+
+    const gasto = current?.gastoId
+      ? await tx.gasto.update({
+          where: { id: current.gastoId },
+          data: {
+            concepto: `Materia prima: ${req.body.nombre}`,
+            categoria: 'Insumos',
+            monto: costo,
+            notas: 'Gasto generado automaticamente desde Materia Prima'
+          }
+        })
+      : await tx.gasto.create({
+          data: {
+            concepto: `Materia prima: ${req.body.nombre}`,
+            categoria: 'Insumos',
+            monto: costo,
+            notas: 'Gasto generado automaticamente desde Materia Prima'
+          }
+        })
+
+    return tx.materiaPrima.update({
+      where: { id },
+      data: {
+        nombre: req.body.nombre,
+        stock: toNumber(req.body.stock),
+        unidad: req.body.unidad,
+        costo,
+        proveedorId: toOptionalNumber(req.body.proveedorId),
+        gastoId: gasto.id
+      },
+      include: {
+        proveedor: true,
+        gasto: true
+      }
+    })
   })
 
   res.json(materiaPrima)

@@ -16,6 +16,7 @@ const proveedoresContainer = document.getElementById('proveedores-container')
 const cashTotalSales = document.getElementById('cash-total-sales')
 const cashTotalExpenses = document.getElementById('cash-total-expenses')
 const cashBalance = document.getElementById('cash-balance')
+const monthlyCashReport = document.getElementById('monthly-cash-report')
 const stockAlerts = document.getElementById('stock-alerts')
 const settingsGrid = document.querySelector('#configuracion .settings-grid')
 const systemStatus = document.getElementById('system-status')
@@ -255,6 +256,115 @@ const summarizeItems = (items = []) => {
   return items
     .map(item => `${item.cantidad} x ${item.nombre}`)
     .join(', ')
+}
+
+const getMonthKey = (value) => {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Sin fecha'
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+const formatMonthLabel = (monthKey) => {
+  if (monthKey === 'Sin fecha') {
+    return monthKey
+  }
+
+  const [year, month] = monthKey.split('-').map(Number)
+
+  return new Intl.DateTimeFormat('es-MX', {
+    month: 'long',
+    year: 'numeric'
+  }).format(new Date(year, month - 1, 1))
+}
+
+const getMonthlyCashRows = () => {
+  const rows = new Map()
+
+  const ensureRow = (monthKey) => {
+    if (!rows.has(monthKey)) {
+      rows.set(monthKey, {
+        monthKey,
+        ventas: 0,
+        gastos: 0,
+        ventasCount: 0,
+        gastosCount: 0
+      })
+    }
+
+    return rows.get(monthKey)
+  }
+
+  ventasState.forEach(venta => {
+    const row = ensureRow(getMonthKey(venta.createdAt))
+
+    row.ventas += Number(venta.total || 0)
+    row.ventasCount += 1
+  })
+
+  gastosState.forEach(gasto => {
+    const row = ensureRow(getMonthKey(gasto.createdAt))
+
+    row.gastos += Number(gasto.monto || 0)
+    row.gastosCount += 1
+  })
+
+  return Array.from(rows.values())
+    .sort((first, second) => second.monthKey.localeCompare(first.monthKey))
+}
+
+const showMonthlyCashReport = () => {
+  const rows = getMonthlyCashRows()
+  const dialog = document.createElement('div')
+
+  dialog.className = 'app-dialog show-modal'
+  dialog.innerHTML = `
+    <div class="app-dialog-content monthly-report-dialog">
+      <h2>Resumen mensual</h2>
+      <p>Ventas y gastos registrados por mes.</p>
+      <div class="monthly-report-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Mes</th>
+              <th>Ventas</th>
+              <th>Gastos</th>
+              <th>Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.length
+              ? rows.map(row => `
+                  <tr>
+                    <td>
+                      <strong>${escapeHtml(formatMonthLabel(row.monthKey))}</strong>
+                      <small>${escapeHtml(row.ventasCount)} ventas &middot; ${escapeHtml(row.gastosCount)} gastos</small>
+                    </td>
+                    <td>${money(row.ventas)}</td>
+                    <td>${money(row.gastos)}</td>
+                    <td><strong>${money(row.ventas - row.gastos)}</strong></td>
+                  </tr>
+                `).join('')
+              : '<tr class="empty-row"><td colspan="4">No hay informacion registrada</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+      <div class="app-dialog-actions">
+        <button class="dialog-btn primary" type="button" data-dialog-action="close">Cerrar</button>
+      </div>
+    </div>
+  `
+
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog || event.target.closest('[data-dialog-action="close"]')) {
+      dialog.remove()
+    }
+  })
+
+  document.body.appendChild(dialog)
 }
 
 const getTicketItems = () => {
@@ -698,7 +808,7 @@ const renderMateriaPrima = (items) => {
   renderLowStockAlerts(items)
 
   if (!items.length) {
-    setTableMessage(materiaContainer, 5, 'No hay materia prima registrada')
+    setTableMessage(materiaContainer, 6, 'No hay materia prima registrada')
     return
   }
 
@@ -707,6 +817,7 @@ const renderMateriaPrima = (items) => {
       <td>${escapeHtml(item.nombre)}</td>
       <td>${escapeHtml(item.stock)}</td>
       <td>${escapeHtml(item.unidad)}</td>
+      <td>${money(item.costo)}</td>
       <td>${escapeHtml(item.proveedor?.nombre || 'Sin proveedor')}</td>
       <td>${renderActionButtons('materia', item.id)}</td>
     </tr>
@@ -869,7 +980,7 @@ const loadData = async () => {
       </div>
     `
 
-    setTableMessage(materiaContainer, 5, 'No se pudo cargar la materia prima')
+    setTableMessage(materiaContainer, 6, 'No se pudo cargar la materia prima')
     setTableMessage(clientesContainer, 3, 'No se pudieron cargar los clientes')
     setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
     setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
@@ -998,6 +1109,11 @@ const renderMateriaModal = (item = null) => {
           <option ${item?.unidad === 'Kilos' ? 'selected' : ''}>Kilos</option>
           <option ${item?.unidad === 'Piezas' ? 'selected' : ''}>Piezas</option>
         </select>
+      </div>
+
+      <div class="form-group">
+        <label>Costo de compra</label>
+        <input name="costo" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(item?.costo ?? '')}" required>
       </div>
 
       <div class="form-group">
@@ -1253,6 +1369,8 @@ document.querySelectorAll('.add-btn').forEach(button => {
     openModal(button.dataset.type)
   })
 })
+
+monthlyCashReport.addEventListener('click', showMonthlyCashReport)
 
 themeToggle.addEventListener('click', async () => {
   await applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark')

@@ -366,8 +366,6 @@ body {
 }
 
 .action-btn {
-  flex: 1;
-
   border: none;
 
   background: #eef2ff;
@@ -376,12 +374,17 @@ body {
 
   border-radius: 16px;
 
-  padding: 12px;
+  width: 42px;
+  height: 42px;
 
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
 
   cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .action-btn.edit {
@@ -400,6 +403,15 @@ body {
 
 .action-btn.delete:hover {
   background: #fecaca;
+}
+
+.action-btn.ticket {
+  background: #dcfce7;
+  color: #047857;
+}
+
+.action-btn.ticket:hover {
+  background: #bbf7d0;
 }
 
 /* TABLE */
@@ -565,6 +577,54 @@ td {
   font-size: 18px;
 
   color: #111827;
+}
+
+td small {
+  display: block;
+
+  margin-top: 5px;
+
+  color: #6b7280;
+}
+
+.low-stock-row {
+  background: #fff7ed;
+}
+
+.stock-alerts {
+  margin-bottom: 20px;
+}
+
+.stock-alert {
+  background: #ffedd5;
+
+  border: 1px solid #fed7aa;
+
+  border-radius: 20px;
+
+  padding: 16px 18px;
+
+  color: #9a3412;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+
+  background: #eef2ff;
+
+  color: #1d4ed8;
+
+  border-radius: 999px;
+
+  padding: 8px 12px;
+
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .cart-item p {
@@ -848,6 +908,32 @@ td {
   line-height: 1.45;
 }
 
+.ticket-dialog {
+  text-align: left;
+}
+
+.ticket-dialog h2 {
+  text-align: center;
+}
+
+.ticket-dialog pre {
+  margin-top: 18px;
+
+  background: #f9fafb;
+
+  border-radius: 18px;
+
+  padding: 18px;
+
+  white-space: pre-wrap;
+
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.45;
+
+  color: #111827;
+}
+
 .app-dialog-actions {
   display: flex;
   gap: 12px;
@@ -929,7 +1015,8 @@ td {
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
   width: 100%;
 
   border: none;
@@ -943,6 +1030,34 @@ td {
   font-size: 16px;
 
   outline: none;
+}
+
+.form-group textarea {
+  min-height: 110px;
+
+  resize: vertical;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .ticket-dialog,
+  .ticket-dialog * {
+    visibility: visible;
+  }
+
+  .ticket-dialog {
+    position: fixed;
+    inset: 20px;
+    width: auto;
+    box-shadow: none;
+  }
+
+  .ticket-dialog .app-dialog-actions {
+    display: none;
+  }
 }
 
 .image-upload {

@@ -9,7 +9,10 @@ const closeModal = document.getElementById('close-modal')
 const productsContainer = document.getElementById('products-container')
 const materiaContainer = document.getElementById('materia-container')
 const clientesContainer = document.getElementById('clientes-container')
+const pedidosContainer = document.getElementById('pedidos-container')
+const ventasContainer = document.getElementById('ventas-container')
 const proveedoresContainer = document.getElementById('proveedores-container')
+const stockAlerts = document.getElementById('stock-alerts')
 const settingsGrid = document.querySelector('#configuracion .settings-grid')
 const systemStatus = document.getElementById('system-status')
 const statusText = document.getElementById('status-text')
@@ -21,6 +24,8 @@ const payButtons = document.querySelectorAll('.pay-btn')
 let productosState = []
 let materiaState = []
 let clientesState = []
+let pedidosState = []
+let ventasState = []
 let proveedoresState = []
 let ticketItems = []
 
@@ -42,6 +47,17 @@ const resourceConfig = {
     label: 'cliente',
     state: () => clientesState,
     open: (record) => openModal('cliente', record)
+  },
+  pedido: {
+    path: '/api/pedidos',
+    label: 'pedido',
+    state: () => pedidosState,
+    open: (record) => openModal('pedido', record)
+  },
+  venta: {
+    path: '/api/ventas',
+    label: 'venta',
+    state: () => ventasState
   },
   proveedor: {
     path: '/api/proveedores',
@@ -98,6 +114,43 @@ const escapeHtml = (value) => {
 
 const money = (value) => {
   return `$${Number(value || 0).toFixed(2)}`
+}
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return 'Sin fecha'
+  }
+
+  return new Intl.DateTimeFormat('es-MX', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(new Date(value))
+}
+
+const toDatetimeLocalValue = (value) => {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+
+  return offsetDate.toISOString().slice(0, 16)
+}
+
+const summarizeItems = (items = []) => {
+  if (!Array.isArray(items) || !items.length) {
+    return 'Sin productos'
+  }
+
+  return items
+    .map(item => `${item.cantidad} x ${item.nombre}`)
+    .join(', ')
 }
 
 const isWholesaleActive = (item) => {
@@ -194,6 +247,44 @@ const showAppDialog = ({
   })
 }
 
+const showTicketDialog = (title, content) => {
+  return new Promise((resolve) => {
+    const dialog = document.createElement('div')
+    dialog.className = 'app-dialog show-modal'
+    dialog.innerHTML = `
+      <div class="app-dialog-content ticket-dialog">
+        <h2>${escapeHtml(title)}</h2>
+        <pre>${escapeHtml(content)}</pre>
+        <div class="app-dialog-actions">
+          <button class="dialog-btn secondary" type="button" data-dialog-action="cancel">Cerrar</button>
+          <button class="dialog-btn primary" type="button" data-dialog-action="confirm">Imprimir</button>
+        </div>
+      </div>
+    `
+
+    const closeDialog = () => {
+      dialog.remove()
+      resolve()
+    }
+
+    dialog.addEventListener('click', (event) => {
+      const actionButton = event.target.closest('[data-dialog-action]')
+
+      if (actionButton?.dataset.dialogAction === 'confirm') {
+        window.print()
+        closeDialog()
+        return
+      }
+
+      if (actionButton?.dataset.dialogAction === 'cancel' || event.target === dialog) {
+        closeDialog()
+      }
+    })
+
+    document.body.appendChild(dialog)
+  })
+}
+
 const setSystemStatus = (status, message) => {
   systemStatus.classList.remove('online', 'offline', 'checking')
   systemStatus.classList.add(status)
@@ -253,11 +344,18 @@ const setTableMessage = (container, columns, message) => {
 const renderActionButtons = (resource, id) => {
   return `
     <div class="row-actions">
-      <button class="action-btn edit" type="button" data-action="edit" data-resource="${resource}" data-id="${escapeHtml(id)}">
-        Editar
-      </button>
-      <button class="action-btn delete" type="button" data-action="delete" data-resource="${resource}" data-id="${escapeHtml(id)}">
-        Eliminar
+      ${resource === 'pedido'
+        ? `<button class="action-btn ticket" type="button" data-action="ticket" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Ticket de pedido" aria-label="Ticket de pedido">
+            &#129534;
+          </button>`
+        : ''}
+      ${resource !== 'venta'
+        ? `<button class="action-btn edit" type="button" data-action="edit" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Editar" aria-label="Editar">
+            &#9998;
+          </button>`
+        : ''}
+      <button class="action-btn delete" type="button" data-action="delete" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Eliminar" aria-label="Eliminar">
+        &#128465;
       </button>
     </div>
   `
@@ -266,6 +364,44 @@ const renderActionButtons = (resource, id) => {
 const closeCurrentModal = () => {
   modal.classList.remove('show-modal')
   modalBody.innerHTML = ''
+}
+
+const renderLowStockAlerts = (items) => {
+  const lowStockItems = items.filter(item => Number(item.stock) <= 3)
+
+  if (!lowStockItems.length) {
+    stockAlerts.innerHTML = ''
+    return
+  }
+
+  stockAlerts.innerHTML = `
+    <div class="stock-alert">
+      <strong>Stock bajo</strong>
+      <span>
+        ${lowStockItems.map(item => `${escapeHtml(item.nombre)} (${escapeHtml(item.stock)} ${escapeHtml(item.unidad)})`).join(' &middot; ')}
+      </span>
+    </div>
+  `
+}
+
+const buildPedidoTicket = (pedido) => {
+  return [
+    'PALETERIA NOPALUCAN',
+    'TICKET DE PEDIDO',
+    `Pedido #${pedido.id}`,
+    '',
+    `Cliente: ${pedido.cliente}`,
+    `Telefono: ${pedido.telefono || 'Sin telefono'}`,
+    `Entrega: ${formatDateTime(pedido.fechaEntrega)}`,
+    `Estado: ${pedido.estado}`,
+    '',
+    'Pedido:',
+    pedido.detalle,
+    '',
+    `Total estimado: ${money(pedido.total)}`,
+    '',
+    'Este ticket corresponde a un pedido, no a una compra.'
+  ].join('\n')
 }
 
 const renderTicket = () => {
@@ -364,17 +500,19 @@ const renderProductos = (productos) => {
 
 const renderMateriaPrima = (items) => {
   materiaState = items
+  renderLowStockAlerts(items)
 
   if (!items.length) {
-    setTableMessage(materiaContainer, 4, 'No hay materia prima registrada')
+    setTableMessage(materiaContainer, 5, 'No hay materia prima registrada')
     return
   }
 
   materiaContainer.innerHTML = items.map(item => `
-    <tr>
+    <tr class="${Number(item.stock) <= 3 ? 'low-stock-row' : ''}">
       <td>${escapeHtml(item.nombre)}</td>
       <td>${escapeHtml(item.stock)}</td>
       <td>${escapeHtml(item.unidad)}</td>
+      <td>${escapeHtml(item.proveedor?.nombre || 'Sin proveedor')}</td>
       <td>${renderActionButtons('materia', item.id)}</td>
     </tr>
   `).join('')
@@ -384,7 +522,7 @@ const renderClientes = (clientes) => {
   clientesState = clientes
 
   if (!clientes.length) {
-    setTableMessage(clientesContainer, 4, 'No hay clientes registrados')
+    setTableMessage(clientesContainer, 3, 'No hay clientes registrados')
     return
   }
 
@@ -392,8 +530,49 @@ const renderClientes = (clientes) => {
     <tr>
       <td>${escapeHtml(cliente.nombre)}</td>
       <td>${escapeHtml(cliente.telefono || 'Sin telefono')}</td>
-      <td>${escapeHtml(cliente.puntos)}</td>
       <td>${renderActionButtons('cliente', cliente.id)}</td>
+    </tr>
+  `).join('')
+}
+
+const renderPedidos = (pedidos) => {
+  pedidosState = pedidos
+
+  if (!pedidos.length) {
+    setTableMessage(pedidosContainer, 6, 'No hay pedidos registrados')
+    return
+  }
+
+  pedidosContainer.innerHTML = pedidos.map(pedido => `
+    <tr>
+      <td>
+        <strong>${escapeHtml(pedido.cliente)}</strong>
+        <small>${escapeHtml(pedido.telefono || 'Sin telefono')}</small>
+      </td>
+      <td>${escapeHtml(formatDateTime(pedido.fechaEntrega))}</td>
+      <td>${escapeHtml(pedido.detalle)}</td>
+      <td>${money(pedido.total)}</td>
+      <td><span class="status-pill">${escapeHtml(pedido.estado)}</span></td>
+      <td>${renderActionButtons('pedido', pedido.id)}</td>
+    </tr>
+  `).join('')
+}
+
+const renderVentas = (ventas) => {
+  ventasState = ventas
+
+  if (!ventas.length) {
+    setTableMessage(ventasContainer, 5, 'No hay ventas registradas')
+    return
+  }
+
+  ventasContainer.innerHTML = ventas.map(venta => `
+    <tr>
+      <td>${escapeHtml(formatDateTime(venta.createdAt))}</td>
+      <td>${escapeHtml(venta.metodoPago)}</td>
+      <td>${escapeHtml(summarizeItems(venta.items))}</td>
+      <td>${money(venta.total)}</td>
+      <td>${renderActionButtons('venta', venta.id)}</td>
     </tr>
   `).join('')
 }
@@ -402,7 +581,7 @@ const renderProveedores = (proveedores) => {
   proveedoresState = proveedores
 
   if (!proveedores.length) {
-    setTableMessage(proveedoresContainer, 4, 'No hay proveedores registrados')
+    setTableMessage(proveedoresContainer, 6, 'No hay proveedores registrados')
     return
   }
 
@@ -411,6 +590,8 @@ const renderProveedores = (proveedores) => {
       <td>${escapeHtml(proveedor.nombre)}</td>
       <td>${escapeHtml(proveedor.contacto || 'Sin contacto')}</td>
       <td>${escapeHtml(proveedor.telefono || 'Sin telefono')}</td>
+      <td>${escapeHtml(proveedor.descripcion || 'Sin descripcion')}</td>
+      <td>${escapeHtml((proveedor.materias || []).map(item => item.nombre).join(', ') || 'Sin materia')}</td>
       <td>${renderActionButtons('proveedor', proveedor.id)}</td>
     </tr>
   `).join('')
@@ -420,17 +601,21 @@ const loadData = async () => {
   try {
     await checkSystemStatus()
 
-    const [productos, materiaPrima, clientes, proveedores] = await Promise.all([
+    const [productos, materiaPrima, clientes, proveedores, pedidos, ventas] = await Promise.all([
       apiRequest('/api/productos'),
       apiRequest('/api/materia-prima'),
       apiRequest('/api/clientes'),
-      apiRequest('/api/proveedores')
+      apiRequest('/api/proveedores'),
+      apiRequest('/api/pedidos'),
+      apiRequest('/api/ventas')
     ])
 
     renderProductos(productos)
     renderMateriaPrima(materiaPrima)
     renderClientes(clientes)
     renderProveedores(proveedores)
+    renderPedidos(pedidos)
+    renderVentas(ventas)
   } catch (error) {
     setSystemStatus('offline', 'Sin conexion a API o base')
 
@@ -441,9 +626,11 @@ const loadData = async () => {
       </div>
     `
 
-    setTableMessage(materiaContainer, 4, 'No se pudo cargar la materia prima')
-    setTableMessage(clientesContainer, 4, 'No se pudieron cargar los clientes')
-    setTableMessage(proveedoresContainer, 4, 'No se pudieron cargar los proveedores')
+    setTableMessage(materiaContainer, 5, 'No se pudo cargar la materia prima')
+    setTableMessage(clientesContainer, 3, 'No se pudieron cargar los clientes')
+    setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
+    setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
+    setTableMessage(ventasContainer, 5, 'No se pudieron cargar las ventas')
   }
 }
 
@@ -534,6 +721,12 @@ const renderProductModal = (producto = null) => {
 
 const renderMateriaModal = (item = null) => {
   const isEditing = Boolean(item)
+  const selectedProveedorId = item?.proveedorId || ''
+  const proveedoresOptions = proveedoresState.map(proveedor => `
+    <option value="${escapeHtml(proveedor.id)}" ${String(selectedProveedorId) === String(proveedor.id) ? 'selected' : ''}>
+      ${escapeHtml(proveedor.nombre)}
+    </option>
+  `).join('')
 
   modalTitle.innerText = isEditing ? 'Editar Materia Prima' : 'Nueva Materia Prima'
   modalBody.innerHTML = `
@@ -554,6 +747,14 @@ const renderMateriaModal = (item = null) => {
           <option ${item?.unidad === 'Litros' ? 'selected' : ''}>Litros</option>
           <option ${item?.unidad === 'Kilos' ? 'selected' : ''}>Kilos</option>
           <option ${item?.unidad === 'Piezas' ? 'selected' : ''}>Piezas</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Proveedor</label>
+        <select name="proveedorId">
+          <option value="">Sin proveedor</option>
+          ${proveedoresOptions}
         </select>
       </div>
 
@@ -578,12 +779,53 @@ const renderClienteModal = (cliente = null) => {
         <input name="telefono" type="text" placeholder="2481234567" value="${escapeHtml(cliente?.telefono || '')}">
       </div>
 
+      <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar cliente'}</button>
+    </form>
+  `
+}
+
+const renderPedidoModal = (pedido = null) => {
+  const isEditing = Boolean(pedido)
+
+  modalTitle.innerText = isEditing ? 'Editar Pedido' : 'Nuevo Pedido'
+  modalBody.innerHTML = `
+    <form data-resource="pedido" ${isEditing ? `data-id="${escapeHtml(pedido.id)}"` : ''}>
       <div class="form-group">
-        <label>Puntos</label>
-        <input name="puntos" type="number" min="0" step="1" placeholder="0" value="${escapeHtml(cliente?.puntos ?? 0)}">
+        <label>Cliente</label>
+        <input name="cliente" type="text" placeholder="Nombre del cliente" value="${escapeHtml(pedido?.cliente || '')}" required>
       </div>
 
-      <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar cliente'}</button>
+      <div class="form-group">
+        <label>Tel&eacute;fono</label>
+        <input name="telefono" type="text" placeholder="2481234567" value="${escapeHtml(pedido?.telefono || '')}">
+      </div>
+
+      <div class="form-group">
+        <label>Pedido</label>
+        <textarea name="detalle" placeholder="Ej. 20 paletas de mango para evento" required>${escapeHtml(pedido?.detalle || '')}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Fecha de entrega</label>
+        <input name="fechaEntrega" type="datetime-local" value="${escapeHtml(toDatetimeLocalValue(pedido?.fechaEntrega))}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Total estimado</label>
+        <input name="total" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(pedido?.total ?? 0)}">
+      </div>
+
+      <div class="form-group">
+        <label>Estado</label>
+        <select name="estado" required>
+          <option ${pedido?.estado === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+          <option ${pedido?.estado === 'En preparacion' ? 'selected' : ''}>En preparacion</option>
+          <option ${pedido?.estado === 'Entregado' ? 'selected' : ''}>Entregado</option>
+          <option ${pedido?.estado === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+        </select>
+      </div>
+
+      <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar pedido'}</button>
     </form>
   `
 }
@@ -609,6 +851,11 @@ const renderProveedorModal = (proveedor = null) => {
         <input name="telefono" type="text" placeholder="2221234567" value="${escapeHtml(proveedor?.telefono || '')}">
       </div>
 
+      <div class="form-group">
+        <label>Descripci&oacute;n</label>
+        <textarea name="descripcion" placeholder="Ej. Proveedor de leche, azucar y empaques">${escapeHtml(proveedor?.descripcion || '')}</textarea>
+      </div>
+
       <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar proveedor'}</button>
     </form>
   `
@@ -627,6 +874,10 @@ const openModal = (type, record = null) => {
 
   if (type === 'cliente') {
     renderClienteModal(record)
+  }
+
+  if (type === 'pedido') {
+    renderPedidoModal(record)
   }
 
   if (type === 'proveedor') {
@@ -672,7 +923,12 @@ const handleActionClick = async (event) => {
     return
   }
 
-  if (actionButton.dataset.action === 'edit') {
+  if (actionButton.dataset.action === 'ticket' && actionButton.dataset.resource === 'pedido') {
+    await showTicketDialog('Ticket de pedido', buildPedidoTicket(record))
+    return
+  }
+
+  if (actionButton.dataset.action === 'edit' && config.open) {
     config.open(record)
     return
   }
@@ -700,6 +956,8 @@ const handleActionClick = async (event) => {
 productsContainer.addEventListener('click', handleActionClick)
 materiaContainer.addEventListener('click', handleActionClick)
 clientesContainer.addEventListener('click', handleActionClick)
+pedidosContainer.addEventListener('click', handleActionClick)
+ventasContainer.addEventListener('click', handleActionClick)
 proveedoresContainer.addEventListener('click', handleActionClick)
 
 productsContainer.addEventListener('click', (event) => {
@@ -787,8 +1045,24 @@ payButtons.forEach(button => {
       return
     }
 
+    await apiRequest('/api/ventas', {
+      method: 'POST',
+      body: JSON.stringify({
+        total,
+        metodoPago: button.classList.contains('card') ? 'Tarjeta' : 'Efectivo',
+        items: ticketItems.map(item => ({
+          id: item.id,
+          nombre: item.nombre,
+          cantidad: item.cantidad,
+          precioUnitario: getWholesalePrice(item),
+          total: getWholesalePrice(item) * item.cantidad
+        }))
+      })
+    })
+
     ticketItems = []
     renderTicket()
+    loadData()
   })
 })
 

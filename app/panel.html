@@ -57,6 +57,16 @@
         <span>Clientes</span>
       </button>
 
+      <button class="category" data-section="pedidos">
+        <span class="nav-icon">&#128221;</span>
+        <span>Pedidos</span>
+      </button>
+
+      <button class="category" data-section="ventas">
+        <span class="nav-icon">&#128202;</span>
+        <span>Ventas</span>
+      </button>
+
       <button class="category" data-section="proveedores">
         <span class="nav-icon">&#128666;</span>
         <span>Proveedores</span>
@@ -128,6 +138,8 @@
 
         </div>
 
+        <div class="stock-alerts" id="stock-alerts"></div>
+
         <div class="table-container">
 
           <table>
@@ -137,6 +149,7 @@
                 <th>Nombre</th>
                 <th>Stock</th>
                 <th>Unidad</th>
+                <th>Proveedor</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -144,7 +157,7 @@
             <tbody id="materia-container">
 
               <tr class="empty-row">
-                <td colspan="4">
+                <td colspan="5">
                   No hay materia prima registrada
                 </td>
               </tr>
@@ -181,7 +194,6 @@
               <tr>
                 <th>Nombre</th>
                 <th>Tel&eacute;fono</th>
-                <th>Puntos</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -189,8 +201,97 @@
             <tbody id="clientes-container">
 
               <tr class="empty-row">
-                <td colspan="4">
+                <td colspan="3">
                   No hay clientes registrados
+                </td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </section>
+
+      <!-- PEDIDOS -->
+      <section class="section" id="pedidos">
+
+        <div class="topbar">
+
+          <div>
+            <h1>Pedidos</h1>
+            <span>Control de entregas y pedidos apartados</span>
+          </div>
+
+          <button class="add-btn" data-type="pedido">
+            + Nuevo pedido
+          </button>
+
+        </div>
+
+        <div class="table-container">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Entrega</th>
+                <th>Pedido</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="pedidos-container">
+
+              <tr class="empty-row">
+                <td colspan="6">
+                  No hay pedidos registrados
+                </td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </section>
+
+      <!-- VENTAS -->
+      <section class="section" id="ventas">
+
+        <div class="topbar">
+
+          <div>
+            <h1>Ventas</h1>
+            <span>Historial de ventas cobradas</span>
+          </div>
+
+        </div>
+
+        <div class="table-container">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>M&eacute;todo</th>
+                <th>Productos</th>
+                <th>Total</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="ventas-container">
+
+              <tr class="empty-row">
+                <td colspan="5">
+                  No hay ventas registradas
                 </td>
               </tr>
 
@@ -227,6 +328,8 @@
                 <th>Proveedor</th>
                 <th>Contacto</th>
                 <th>Tel&eacute;fono</th>
+                <th>Descripci&oacute;n</th>
+                <th>Materia prima</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -234,7 +337,7 @@
             <tbody id="proveedores-container">
 
               <tr class="empty-row">
-                <td colspan="4">
+                <td colspan="6">
                   No hay proveedores registrados
                 </td>
               </tr>

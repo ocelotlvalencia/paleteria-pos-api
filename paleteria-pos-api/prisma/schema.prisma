@@ -39,8 +39,6 @@ model Cliente {
 
   telefono    String?
 
-  puntos      Int      @default(0)
-
   createdAt   DateTime @default(now())
 }
 
@@ -55,6 +53,10 @@ model Proveedor {
   contacto    String?
 
   telefono    String?
+
+  descripcion String?
+
+  materias    MateriaPrima[]
 
   createdAt   DateTime @default(now())
 }
@@ -71,6 +73,10 @@ model MateriaPrima {
 
   unidad      String
 
+  proveedorId Int?
+
+  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id], onDelete: SetNull)
+
   createdAt   DateTime @default(now())
 }
 
@@ -83,6 +89,29 @@ model Venta {
   total         Float
 
   metodoPago    String
+
+  items         Json?
+
+  createdAt     DateTime @default(now())
+}
+
+/* PEDIDOS */
+
+model Pedido {
+
+  id            Int      @id @default(autoincrement())
+
+  cliente       String
+
+  telefono      String?
+
+  detalle       String
+
+  fechaEntrega  DateTime
+
+  estado        String   @default("Pendiente")
+
+  total         Float    @default(0)
 
   createdAt     DateTime @default(now())
 }

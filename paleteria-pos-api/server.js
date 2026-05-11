@@ -38,6 +38,12 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+const toDate = (value) => {
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime()) ? new Date() : date
+}
+
 app.get('/', (req, res) => {
   res.json({
     message: 'API ONLINE'
@@ -109,6 +115,9 @@ app.delete('/api/productos/:id', asyncHandler(async (req, res) => {
 
 app.get('/api/materia-prima', asyncHandler(async (req, res) => {
   const materiaPrima = await prisma.materiaPrima.findMany({
+    include: {
+      proveedor: true
+    },
     orderBy: { createdAt: 'desc' }
   })
 
@@ -120,7 +129,8 @@ app.post('/api/materia-prima', asyncHandler(async (req, res) => {
     data: {
       nombre: req.body.nombre,
       stock: toNumber(req.body.stock),
-      unidad: req.body.unidad
+      unidad: req.body.unidad,
+      proveedorId: toOptionalNumber(req.body.proveedorId)
     }
   })
 
@@ -135,7 +145,8 @@ app.put('/api/materia-prima/:id', asyncHandler(async (req, res) => {
     data: {
       nombre: req.body.nombre,
       stock: toNumber(req.body.stock),
-      unidad: req.body.unidad
+      unidad: req.body.unidad,
+      proveedorId: toOptionalNumber(req.body.proveedorId)
     }
   })
 
@@ -164,8 +175,7 @@ app.post('/api/clientes', asyncHandler(async (req, res) => {
   const cliente = await prisma.cliente.create({
     data: {
       nombre: req.body.nombre,
-      telefono: req.body.telefono || null,
-      puntos: toNumber(req.body.puntos)
+      telefono: req.body.telefono || null
     }
   })
 
@@ -179,8 +189,7 @@ app.put('/api/clientes/:id', asyncHandler(async (req, res) => {
     },
     data: {
       nombre: req.body.nombre,
-      telefono: req.body.telefono || null,
-      puntos: toNumber(req.body.puntos)
+      telefono: req.body.telefono || null
     }
   })
 
@@ -199,6 +208,9 @@ app.delete('/api/clientes/:id', asyncHandler(async (req, res) => {
 
 app.get('/api/proveedores', asyncHandler(async (req, res) => {
   const proveedores = await prisma.proveedor.findMany({
+    include: {
+      materias: true
+    },
     orderBy: { createdAt: 'desc' }
   })
 
@@ -210,7 +222,8 @@ app.post('/api/proveedores', asyncHandler(async (req, res) => {
     data: {
       nombre: req.body.nombre,
       contacto: req.body.contacto || null,
-      telefono: req.body.telefono || null
+      telefono: req.body.telefono || null,
+      descripcion: req.body.descripcion || null
     }
   })
 
@@ -225,7 +238,8 @@ app.put('/api/proveedores/:id', asyncHandler(async (req, res) => {
     data: {
       nombre: req.body.nombre,
       contacto: req.body.contacto || null,
-      telefono: req.body.telefono || null
+      telefono: req.body.telefono || null,
+      descripcion: req.body.descripcion || null
     }
   })
 
@@ -234,6 +248,87 @@ app.put('/api/proveedores/:id', asyncHandler(async (req, res) => {
 
 app.delete('/api/proveedores/:id', asyncHandler(async (req, res) => {
   await prisma.proveedor.delete({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  res.status(204).send()
+}))
+
+app.get('/api/ventas', asyncHandler(async (req, res) => {
+  const ventas = await prisma.venta.findMany({
+    orderBy: { createdAt: 'desc' }
+  })
+
+  res.json(ventas)
+}))
+
+app.post('/api/ventas', asyncHandler(async (req, res) => {
+  const venta = await prisma.venta.create({
+    data: {
+      total: toNumber(req.body.total),
+      metodoPago: req.body.metodoPago || 'Efectivo',
+      items: Array.isArray(req.body.items) ? req.body.items : []
+    }
+  })
+
+  res.status(201).json(venta)
+}))
+
+app.delete('/api/ventas/:id', asyncHandler(async (req, res) => {
+  await prisma.venta.delete({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  res.status(204).send()
+}))
+
+app.get('/api/pedidos', asyncHandler(async (req, res) => {
+  const pedidos = await prisma.pedido.findMany({
+    orderBy: { fechaEntrega: 'asc' }
+  })
+
+  res.json(pedidos)
+}))
+
+app.post('/api/pedidos', asyncHandler(async (req, res) => {
+  const pedido = await prisma.pedido.create({
+    data: {
+      cliente: req.body.cliente,
+      telefono: req.body.telefono || null,
+      detalle: req.body.detalle,
+      fechaEntrega: toDate(req.body.fechaEntrega),
+      estado: req.body.estado || 'Pendiente',
+      total: toNumber(req.body.total)
+    }
+  })
+
+  res.status(201).json(pedido)
+}))
+
+app.put('/api/pedidos/:id', asyncHandler(async (req, res) => {
+  const pedido = await prisma.pedido.update({
+    where: {
+      id: toNumber(req.params.id)
+    },
+    data: {
+      cliente: req.body.cliente,
+      telefono: req.body.telefono || null,
+      detalle: req.body.detalle,
+      fechaEntrega: toDate(req.body.fechaEntrega),
+      estado: req.body.estado || 'Pendiente',
+      total: toNumber(req.body.total)
+    }
+  })
+
+  res.json(pedido)
+}))
+
+app.delete('/api/pedidos/:id', asyncHandler(async (req, res) => {
+  await prisma.pedido.delete({
     where: {
       id: toNumber(req.params.id)
     }

@@ -30,10 +30,8 @@
       "allowToChangeInstallationDirectory": true
     }
   },
-  "dependencies": {
-    "electron": "^41.5.0"
-  },
   "devDependencies": {
+    "electron": "^42.0.1",
     "electron-builder": "^26.8.1"
   }
 }

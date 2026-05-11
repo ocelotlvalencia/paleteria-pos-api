@@ -13,6 +13,36 @@ const proveedoresContainer = document.getElementById('proveedores-container')
 const settingsGrid = document.querySelector('#configuracion .settings-grid')
 
 let productosState = []
+let materiaState = []
+let clientesState = []
+let proveedoresState = []
+
+const resourceConfig = {
+  producto: {
+    path: '/api/productos',
+    label: 'producto',
+    state: () => productosState,
+    open: (record) => openModal('producto', record)
+  },
+  materia: {
+    path: '/api/materia-prima',
+    label: 'materia prima',
+    state: () => materiaState,
+    open: (record) => openModal('materia', record)
+  },
+  cliente: {
+    path: '/api/clientes',
+    label: 'cliente',
+    state: () => clientesState,
+    open: (record) => openModal('cliente', record)
+  },
+  proveedor: {
+    path: '/api/proveedores',
+    label: 'proveedor',
+    state: () => proveedoresState,
+    open: (record) => openModal('proveedor', record)
+  }
+}
 
 const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
 const LEGACY_LOCAL_API_URLS = new Set([
@@ -41,6 +71,10 @@ const apiRequest = async (path, options = {}) => {
 
   if (!response.ok) {
     throw new Error(`Error ${response.status}`)
+  }
+
+  if (response.status === 204) {
+    return null
   }
 
   return response.json()
@@ -99,6 +133,19 @@ const setTableMessage = (container, columns, message) => {
   `
 }
 
+const renderActionButtons = (resource, id) => {
+  return `
+    <div class="row-actions">
+      <button class="action-btn edit" type="button" data-action="edit" data-resource="${resource}" data-id="${escapeHtml(id)}">
+        Editar
+      </button>
+      <button class="action-btn delete" type="button" data-action="delete" data-resource="${resource}" data-id="${escapeHtml(id)}">
+        Eliminar
+      </button>
+    </div>
+  `
+}
+
 const closeCurrentModal = () => {
   modal.classList.remove('show-modal')
   modalBody.innerHTML = ''
@@ -128,16 +175,16 @@ const renderProductos = (productos) => {
       <h3>${escapeHtml(producto.nombre)}</h3>
       <p>${money(producto.precio)}</p>
       <span>${escapeHtml(producto.categoria)} &middot; Stock ${escapeHtml(producto.stock)}</span>
-      <button class="edit-product-btn" type="button" data-product-id="${escapeHtml(producto.id)}">
-        Editar
-      </button>
+      ${renderActionButtons('producto', producto.id)}
     </article>
   `).join('')
 }
 
 const renderMateriaPrima = (items) => {
+  materiaState = items
+
   if (!items.length) {
-    setTableMessage(materiaContainer, 3, 'No hay materia prima registrada')
+    setTableMessage(materiaContainer, 4, 'No hay materia prima registrada')
     return
   }
 
@@ -146,13 +193,16 @@ const renderMateriaPrima = (items) => {
       <td>${escapeHtml(item.nombre)}</td>
       <td>${escapeHtml(item.stock)}</td>
       <td>${escapeHtml(item.unidad)}</td>
+      <td>${renderActionButtons('materia', item.id)}</td>
     </tr>
   `).join('')
 }
 
 const renderClientes = (clientes) => {
+  clientesState = clientes
+
   if (!clientes.length) {
-    setTableMessage(clientesContainer, 3, 'No hay clientes registrados')
+    setTableMessage(clientesContainer, 4, 'No hay clientes registrados')
     return
   }
 
@@ -161,13 +211,16 @@ const renderClientes = (clientes) => {
       <td>${escapeHtml(cliente.nombre)}</td>
       <td>${escapeHtml(cliente.telefono || 'Sin telefono')}</td>
       <td>${escapeHtml(cliente.puntos)}</td>
+      <td>${renderActionButtons('cliente', cliente.id)}</td>
     </tr>
   `).join('')
 }
 
 const renderProveedores = (proveedores) => {
+  proveedoresState = proveedores
+
   if (!proveedores.length) {
-    setTableMessage(proveedoresContainer, 3, 'No hay proveedores registrados')
+    setTableMessage(proveedoresContainer, 4, 'No hay proveedores registrados')
     return
   }
 
@@ -176,6 +229,7 @@ const renderProveedores = (proveedores) => {
       <td>${escapeHtml(proveedor.nombre)}</td>
       <td>${escapeHtml(proveedor.contacto || 'Sin contacto')}</td>
       <td>${escapeHtml(proveedor.telefono || 'Sin telefono')}</td>
+      <td>${renderActionButtons('proveedor', proveedor.id)}</td>
     </tr>
   `).join('')
 }
@@ -201,9 +255,9 @@ const loadData = async () => {
       </div>
     `
 
-    setTableMessage(materiaContainer, 3, 'No se pudo cargar la materia prima')
-    setTableMessage(clientesContainer, 3, 'No se pudieron cargar los clientes')
-    setTableMessage(proveedoresContainer, 3, 'No se pudieron cargar los proveedores')
+    setTableMessage(materiaContainer, 4, 'No se pudo cargar la materia prima')
+    setTableMessage(clientesContainer, 4, 'No se pudieron cargar los clientes')
+    setTableMessage(proveedoresContainer, 4, 'No se pudieron cargar los proveedores')
   }
 }
 
@@ -264,7 +318,7 @@ const renderProductModal = (producto = null) => {
 
       <div class="form-group">
         <label>Precio</label>
-        <input name="precio" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(producto?.precio || '')}" required>
+        <input name="precio" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(producto?.precio ?? '')}" required>
       </div>
 
       <div class="form-group">
@@ -282,6 +336,88 @@ const renderProductModal = (producto = null) => {
   `
 }
 
+const renderMateriaModal = (item = null) => {
+  const isEditing = Boolean(item)
+
+  modalTitle.innerText = isEditing ? 'Editar Materia Prima' : 'Nueva Materia Prima'
+  modalBody.innerHTML = `
+    <form data-resource="materia" ${isEditing ? `data-id="${escapeHtml(item.id)}"` : ''}>
+      <div class="form-group">
+        <label>Nombre</label>
+        <input name="nombre" type="text" placeholder="Ej. Leche" value="${escapeHtml(item?.nombre || '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Stock</label>
+        <input name="stock" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(item?.stock ?? '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Unidad</label>
+        <select name="unidad" required>
+          <option ${item?.unidad === 'Litros' ? 'selected' : ''}>Litros</option>
+          <option ${item?.unidad === 'Kilos' ? 'selected' : ''}>Kilos</option>
+          <option ${item?.unidad === 'Piezas' ? 'selected' : ''}>Piezas</option>
+        </select>
+      </div>
+
+      <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar materia prima'}</button>
+    </form>
+  `
+}
+
+const renderClienteModal = (cliente = null) => {
+  const isEditing = Boolean(cliente)
+
+  modalTitle.innerText = isEditing ? 'Editar Cliente' : 'Nuevo Cliente'
+  modalBody.innerHTML = `
+    <form data-resource="cliente" ${isEditing ? `data-id="${escapeHtml(cliente.id)}"` : ''}>
+      <div class="form-group">
+        <label>Nombre</label>
+        <input name="nombre" type="text" placeholder="Nombre del cliente" value="${escapeHtml(cliente?.nombre || '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Tel&eacute;fono</label>
+        <input name="telefono" type="text" placeholder="2481234567" value="${escapeHtml(cliente?.telefono || '')}">
+      </div>
+
+      <div class="form-group">
+        <label>Puntos</label>
+        <input name="puntos" type="number" min="0" step="1" placeholder="0" value="${escapeHtml(cliente?.puntos ?? 0)}">
+      </div>
+
+      <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar cliente'}</button>
+    </form>
+  `
+}
+
+const renderProveedorModal = (proveedor = null) => {
+  const isEditing = Boolean(proveedor)
+
+  modalTitle.innerText = isEditing ? 'Editar Proveedor' : 'Nuevo Proveedor'
+  modalBody.innerHTML = `
+    <form data-resource="proveedor" ${isEditing ? `data-id="${escapeHtml(proveedor.id)}"` : ''}>
+      <div class="form-group">
+        <label>Proveedor</label>
+        <input name="nombre" type="text" placeholder="Nombre proveedor" value="${escapeHtml(proveedor?.nombre || '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Contacto</label>
+        <input name="contacto" type="text" placeholder="Nombre contacto" value="${escapeHtml(proveedor?.contacto || '')}">
+      </div>
+
+      <div class="form-group">
+        <label>Tel&eacute;fono</label>
+        <input name="telefono" type="text" placeholder="2221234567" value="${escapeHtml(proveedor?.telefono || '')}">
+      </div>
+
+      <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar proveedor'}</button>
+    </form>
+  `
+}
+
 const openModal = (type, record = null) => {
   modal.classList.add('show-modal')
 
@@ -290,74 +426,15 @@ const openModal = (type, record = null) => {
   }
 
   if (type === 'materia') {
-    modalTitle.innerText = 'Nueva Materia Prima'
-    modalBody.innerHTML = `
-      <form data-resource="materia">
-        <div class="form-group">
-          <label>Nombre</label>
-          <input name="nombre" type="text" placeholder="Ej. Leche" required>
-        </div>
-
-        <div class="form-group">
-          <label>Stock</label>
-          <input name="stock" type="number" min="0" step="0.01" placeholder="0" required>
-        </div>
-
-        <div class="form-group">
-          <label>Unidad</label>
-          <select name="unidad" required>
-            <option>Litros</option>
-            <option>Kilos</option>
-            <option>Piezas</option>
-          </select>
-        </div>
-
-        <button class="save-btn" type="submit">Guardar materia prima</button>
-      </form>
-    `
+    renderMateriaModal(record)
   }
 
   if (type === 'cliente') {
-    modalTitle.innerText = 'Nuevo Cliente'
-    modalBody.innerHTML = `
-      <form data-resource="cliente">
-        <div class="form-group">
-          <label>Nombre</label>
-          <input name="nombre" type="text" placeholder="Nombre del cliente" required>
-        </div>
-
-        <div class="form-group">
-          <label>Tel&eacute;fono</label>
-          <input name="telefono" type="text" placeholder="2481234567">
-        </div>
-
-        <button class="save-btn" type="submit">Guardar cliente</button>
-      </form>
-    `
+    renderClienteModal(record)
   }
 
   if (type === 'proveedor') {
-    modalTitle.innerText = 'Nuevo Proveedor'
-    modalBody.innerHTML = `
-      <form data-resource="proveedor">
-        <div class="form-group">
-          <label>Proveedor</label>
-          <input name="nombre" type="text" placeholder="Nombre proveedor" required>
-        </div>
-
-        <div class="form-group">
-          <label>Contacto</label>
-          <input name="contacto" type="text" placeholder="Nombre contacto">
-        </div>
-
-        <div class="form-group">
-          <label>Tel&eacute;fono</label>
-          <input name="telefono" type="text" placeholder="2221234567">
-        </div>
-
-        <button class="save-btn" type="submit">Guardar proveedor</button>
-      </form>
-    `
+    renderProveedorModal(record)
   }
 }
 
@@ -385,19 +462,44 @@ document.querySelectorAll('.add-btn').forEach(button => {
   })
 })
 
-productsContainer.addEventListener('click', (event) => {
-  const editButton = event.target.closest('.edit-product-btn')
+const handleActionClick = async (event) => {
+  const actionButton = event.target.closest('[data-action]')
 
-  if (!editButton) {
+  if (!actionButton) {
     return
   }
 
-  const producto = productosState.find(item => String(item.id) === editButton.dataset.productId)
+  const config = resourceConfig[actionButton.dataset.resource]
+  const record = config?.state().find(item => String(item.id) === actionButton.dataset.id)
 
-  if (producto) {
-    openModal('producto', producto)
+  if (!config || !record) {
+    return
   }
-})
+
+  if (actionButton.dataset.action === 'edit') {
+    config.open(record)
+    return
+  }
+
+  if (actionButton.dataset.action === 'delete') {
+    const shouldDelete = window.confirm(`Eliminar ${config.label} "${record.nombre}"?`)
+
+    if (!shouldDelete) {
+      return
+    }
+
+    await apiRequest(`${config.path}/${record.id}`, {
+      method: 'DELETE'
+    })
+
+    loadData()
+  }
+}
+
+productsContainer.addEventListener('click', handleActionClick)
+materiaContainer.addEventListener('click', handleActionClick)
+clientesContainer.addEventListener('click', handleActionClick)
+proveedoresContainer.addEventListener('click', handleActionClick)
 
 modalBody.addEventListener('change', async (event) => {
   if (event.target.id !== 'producto-imagen-file') {
@@ -426,17 +528,11 @@ modalBody.addEventListener('submit', async (event) => {
   const formData = new FormData(form)
   const data = Object.fromEntries(formData.entries())
   const resource = form.dataset.resource
-  const isEditingProduct = resource === 'producto' && form.dataset.id
+  const isEditing = Boolean(form.dataset.id)
+  const config = resourceConfig[resource]
 
-  const paths = {
-    producto: '/api/productos',
-    materia: '/api/materia-prima',
-    cliente: '/api/clientes',
-    proveedor: '/api/proveedores'
-  }
-
-  await apiRequest(isEditingProduct ? `${paths[resource]}/${form.dataset.id}` : paths[resource], {
-    method: isEditingProduct ? 'PUT' : 'POST',
+  await apiRequest(isEditing ? `${config.path}/${form.dataset.id}` : config.path, {
+    method: isEditing ? 'PUT' : 'POST',
     body: JSON.stringify(data)
   })
 

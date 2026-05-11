@@ -80,6 +80,16 @@ app.put('/api/productos/:id', asyncHandler(async (req, res) => {
   res.json(producto)
 }))
 
+app.delete('/api/productos/:id', asyncHandler(async (req, res) => {
+  await prisma.producto.delete({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  res.status(204).send()
+}))
+
 app.get('/api/materia-prima', asyncHandler(async (req, res) => {
   const materiaPrima = await prisma.materiaPrima.findMany({
     orderBy: { createdAt: 'desc' }
@@ -98,6 +108,31 @@ app.post('/api/materia-prima', asyncHandler(async (req, res) => {
   })
 
   res.status(201).json(materiaPrima)
+}))
+
+app.put('/api/materia-prima/:id', asyncHandler(async (req, res) => {
+  const materiaPrima = await prisma.materiaPrima.update({
+    where: {
+      id: toNumber(req.params.id)
+    },
+    data: {
+      nombre: req.body.nombre,
+      stock: toNumber(req.body.stock),
+      unidad: req.body.unidad
+    }
+  })
+
+  res.json(materiaPrima)
+}))
+
+app.delete('/api/materia-prima/:id', asyncHandler(async (req, res) => {
+  await prisma.materiaPrima.delete({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  res.status(204).send()
 }))
 
 app.get('/api/clientes', asyncHandler(async (req, res) => {
@@ -120,6 +155,31 @@ app.post('/api/clientes', asyncHandler(async (req, res) => {
   res.status(201).json(cliente)
 }))
 
+app.put('/api/clientes/:id', asyncHandler(async (req, res) => {
+  const cliente = await prisma.cliente.update({
+    where: {
+      id: toNumber(req.params.id)
+    },
+    data: {
+      nombre: req.body.nombre,
+      telefono: req.body.telefono || null,
+      puntos: toNumber(req.body.puntos)
+    }
+  })
+
+  res.json(cliente)
+}))
+
+app.delete('/api/clientes/:id', asyncHandler(async (req, res) => {
+  await prisma.cliente.delete({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  res.status(204).send()
+}))
+
 app.get('/api/proveedores', asyncHandler(async (req, res) => {
   const proveedores = await prisma.proveedor.findMany({
     orderBy: { createdAt: 'desc' }
@@ -138,6 +198,31 @@ app.post('/api/proveedores', asyncHandler(async (req, res) => {
   })
 
   res.status(201).json(proveedor)
+}))
+
+app.put('/api/proveedores/:id', asyncHandler(async (req, res) => {
+  const proveedor = await prisma.proveedor.update({
+    where: {
+      id: toNumber(req.params.id)
+    },
+    data: {
+      nombre: req.body.nombre,
+      contacto: req.body.contacto || null,
+      telefono: req.body.telefono || null
+    }
+  })
+
+  res.json(proveedor)
+}))
+
+app.delete('/api/proveedores/:id', asyncHandler(async (req, res) => {
+  await prisma.proveedor.delete({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  res.status(204).send()
 }))
 
 app.use((error, req, res, next) => {

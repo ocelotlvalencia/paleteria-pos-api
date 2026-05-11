@@ -319,8 +319,19 @@ body {
   color: #6b7280;
 }
 
-.edit-product-btn {
-  width: 100%;
+.row-actions {
+  display: flex;
+  gap: 10px;
+
+  justify-content: center;
+}
+
+.product-card .row-actions {
+  margin-top: 16px;
+}
+
+.action-btn {
+  flex: 1;
 
   border: none;
 
@@ -336,12 +347,24 @@ body {
   font-weight: 700;
 
   cursor: pointer;
-
-  margin-top: 16px;
 }
 
-.edit-product-btn:hover {
+.action-btn.edit {
+  background: #eef2ff;
+  color: #1d4ed8;
+}
+
+.action-btn.edit:hover {
   background: #dbeafe;
+}
+
+.action-btn.delete {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.action-btn.delete:hover {
+  background: #fecaca;
 }
 
 /* TABLE */

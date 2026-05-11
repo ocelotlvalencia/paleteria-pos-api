@@ -90,6 +90,12 @@ model Venta {
 
   metodoPago    String
 
+  tipo          String   @default("Venta")
+
+  concepto      String?
+
+  pedidoId      Int?
+
   items         Json?
 
   createdAt     DateTime @default(now())
@@ -112,6 +118,14 @@ model Pedido {
   estado        String   @default("Pendiente")
 
   total         Float    @default(0)
+
+  anticipo      Float    @default(0)
+
+  metodoAnticipo String?
+
+  anticipoVentaId Int?
+
+  entregaVentaId Int?
 
   createdAt     DateTime @default(now())
 }

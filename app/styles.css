@@ -355,6 +355,12 @@ body {
   gap: 10px;
 
   justify-content: center;
+  align-items: center;
+  min-width: 94px;
+}
+
+td .row-actions {
+  justify-content: flex-start;
 }
 
 .product-card .row-actions {
@@ -366,6 +372,8 @@ body {
 }
 
 .action-btn {
+  flex: 0 0 42px;
+
   border: none;
 
   background: #eef2ff;
@@ -727,6 +735,32 @@ td small {
   margin-top: 30px;
 }
 
+.payment-method {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  color: #374151;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.payment-method select {
+  border: none;
+
+  background: rgba(0,0,0,0.05);
+
+  border-radius: 18px;
+
+  padding: 16px;
+
+  font-size: 16px;
+  font-weight: 700;
+
+  outline: none;
+}
+
 .pay-btn {
   border: none;
 
@@ -756,6 +790,12 @@ td small {
   background: #e5e7eb;
 
   color: #111827;
+}
+
+.cancel {
+  background: #fee2e2;
+
+  color: #b91c1c;
 }
 
 /* EMPTY STATES */
@@ -1036,6 +1076,18 @@ td small {
   min-height: 110px;
 
   resize: vertical;
+}
+
+.form-summary {
+  background: #f0fdf4;
+
+  border-radius: 18px;
+
+  padding: 16px;
+
+  margin-bottom: 20px;
+
+  color: #047857;
 }
 
 @media print {

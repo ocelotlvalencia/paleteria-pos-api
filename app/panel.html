@@ -431,12 +431,20 @@
 
       <div class="cart-buttons">
 
-        <button class="pay-btn cash">
-          <span class="card-icon">&#128181;</span> Efectivo
+        <label class="payment-method">
+          <span>M&eacute;todo de pago</span>
+          <select id="ticket-payment-method">
+            <option>Efectivo</option>
+            <option>Tarjeta</option>
+          </select>
+        </label>
+
+        <button class="pay-btn cash" id="charge-ticket">
+          <span class="card-icon">&#129534;</span> Cobrar
         </button>
 
-        <button class="pay-btn card">
-          <span class="card-icon">&#128179;</span> Tarjeta
+        <button class="pay-btn cancel" id="cancel-ticket">
+          Cancelar
         </button>
 
       </div>

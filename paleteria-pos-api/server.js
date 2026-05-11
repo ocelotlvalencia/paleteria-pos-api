@@ -44,6 +44,29 @@ const toDate = (value) => {
   return Number.isNaN(date.getTime()) ? new Date() : date
 }
 
+const buildPedidoItems = (pedido, concepto, total) => {
+  return [{
+    id: `pedido-${pedido.id}`,
+    nombre: concepto,
+    cantidad: 1,
+    precioUnitario: total,
+    total
+  }]
+}
+
+const createPedidoVenta = async ({ pedido, tipo, concepto, total, metodoPago }) => {
+  return prisma.venta.create({
+    data: {
+      total,
+      metodoPago: metodoPago || 'Efectivo',
+      tipo,
+      concepto,
+      pedidoId: pedido.id,
+      items: buildPedidoItems(pedido, concepto, total)
+    }
+  })
+}
+
 app.get('/', (req, res) => {
   res.json({
     message: 'API ONLINE'
@@ -269,6 +292,9 @@ app.post('/api/ventas', asyncHandler(async (req, res) => {
     data: {
       total: toNumber(req.body.total),
       metodoPago: req.body.metodoPago || 'Efectivo',
+      tipo: req.body.tipo || 'Venta',
+      concepto: req.body.concepto || null,
+      pedidoId: toOptionalNumber(req.body.pedidoId),
       items: Array.isArray(req.body.items) ? req.body.items : []
     }
   })
@@ -295,22 +321,61 @@ app.get('/api/pedidos', asyncHandler(async (req, res) => {
 }))
 
 app.post('/api/pedidos', asyncHandler(async (req, res) => {
-  const pedido = await prisma.pedido.create({
+  let pedido = await prisma.pedido.create({
     data: {
       cliente: req.body.cliente,
       telefono: req.body.telefono || null,
       detalle: req.body.detalle,
       fechaEntrega: toDate(req.body.fechaEntrega),
       estado: req.body.estado || 'Pendiente',
-      total: toNumber(req.body.total)
+      total: toNumber(req.body.total),
+      anticipo: toNumber(req.body.anticipo),
+      metodoAnticipo: req.body.metodoAnticipo || null
     }
   })
+
+  if (pedido.anticipo > 0) {
+    const venta = await createPedidoVenta({
+      pedido,
+      tipo: 'Anticipo',
+      concepto: `Anticipo pedido #${pedido.id}`,
+      total: pedido.anticipo,
+      metodoPago: pedido.metodoAnticipo
+    })
+
+    pedido = await prisma.pedido.update({
+      where: { id: pedido.id },
+      data: { anticipoVentaId: venta.id }
+    })
+  }
+
+  if (pedido.estado === 'Entregado') {
+    const saldo = Math.max(Number(pedido.total || 0) - Number(pedido.anticipo || 0), 0)
+    const venta = await createPedidoVenta({
+      pedido,
+      tipo: 'Pedido entregado',
+      concepto: `Entrega pedido #${pedido.id}`,
+      total: saldo,
+      metodoPago: req.body.metodoEntrega || 'Efectivo'
+    })
+
+    pedido = await prisma.pedido.update({
+      where: { id: pedido.id },
+      data: { entregaVentaId: venta.id }
+    })
+  }
 
   res.status(201).json(pedido)
 }))
 
 app.put('/api/pedidos/:id', asyncHandler(async (req, res) => {
-  const pedido = await prisma.pedido.update({
+  const previousPedido = await prisma.pedido.findUnique({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  let pedido = await prisma.pedido.update({
     where: {
       id: toNumber(req.params.id)
     },
@@ -320,9 +385,42 @@ app.put('/api/pedidos/:id', asyncHandler(async (req, res) => {
       detalle: req.body.detalle,
       fechaEntrega: toDate(req.body.fechaEntrega),
       estado: req.body.estado || 'Pendiente',
-      total: toNumber(req.body.total)
+      total: toNumber(req.body.total),
+      anticipo: toNumber(req.body.anticipo),
+      metodoAnticipo: req.body.metodoAnticipo || null
     }
   })
+
+  if (pedido.anticipo > 0 && !previousPedido?.anticipoVentaId) {
+    const venta = await createPedidoVenta({
+      pedido,
+      tipo: 'Anticipo',
+      concepto: `Anticipo pedido #${pedido.id}`,
+      total: pedido.anticipo,
+      metodoPago: pedido.metodoAnticipo
+    })
+
+    pedido = await prisma.pedido.update({
+      where: { id: pedido.id },
+      data: { anticipoVentaId: venta.id }
+    })
+  }
+
+  if (pedido.estado === 'Entregado' && previousPedido?.estado !== 'Entregado' && !previousPedido?.entregaVentaId) {
+    const saldo = Math.max(Number(pedido.total || 0) - Number(pedido.anticipo || 0), 0)
+    const venta = await createPedidoVenta({
+      pedido,
+      tipo: 'Pedido entregado',
+      concepto: `Entrega pedido #${pedido.id}`,
+      total: saldo,
+      metodoPago: req.body.metodoEntrega || 'Efectivo'
+    })
+
+    pedido = await prisma.pedido.update({
+      where: { id: pedido.id },
+      data: { entregaVentaId: venta.id }
+    })
+  }
 
   res.json(pedido)
 }))

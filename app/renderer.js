@@ -19,7 +19,9 @@ const statusText = document.getElementById('status-text')
 const cartItemsContainer = document.getElementById('cart-items')
 const cartSubtotal = document.getElementById('cart-subtotal')
 const cartTotal = document.getElementById('cart-total')
-const payButtons = document.querySelectorAll('.pay-btn')
+const ticketPaymentMethod = document.getElementById('ticket-payment-method')
+const chargeTicket = document.getElementById('charge-ticket')
+const cancelTicket = document.getElementById('cancel-ticket')
 
 let productosState = []
 let materiaState = []
@@ -151,6 +153,20 @@ const summarizeItems = (items = []) => {
   return items
     .map(item => `${item.cantidad} x ${item.nombre}`)
     .join(', ')
+}
+
+const getTicketItems = () => {
+  return ticketItems.map(item => ({
+    id: item.id,
+    nombre: item.nombre,
+    cantidad: item.cantidad,
+    precioUnitario: getWholesalePrice(item),
+    total: getWholesalePrice(item) * item.cantidad
+  }))
+}
+
+const getTicketTotal = () => {
+  return getTicketItems().reduce((sum, item) => sum + item.total, 0)
 }
 
 const isWholesaleActive = (item) => {
@@ -385,6 +401,9 @@ const renderLowStockAlerts = (items) => {
 }
 
 const buildPedidoTicket = (pedido) => {
+  const anticipo = Number(pedido.anticipo || 0)
+  const saldo = Math.max(Number(pedido.total || 0) - anticipo, 0)
+
   return [
     'PALETERIA NOPALUCAN',
     'TICKET DE PEDIDO',
@@ -399,8 +418,28 @@ const buildPedidoTicket = (pedido) => {
     pedido.detalle,
     '',
     `Total estimado: ${money(pedido.total)}`,
+    `Anticipo: ${money(anticipo)}`,
+    `Saldo: ${money(saldo)}`,
+    `Metodo anticipo: ${pedido.metodoAnticipo || 'Sin anticipo'}`,
     '',
     'Este ticket corresponde a un pedido, no a una compra.'
+  ].join('\n')
+}
+
+const buildVentaTicket = ({ id, metodoPago, items, total }) => {
+  return [
+    'PALETERIA NOPALUCAN',
+    'TICKET DE COMPRA',
+    id ? `Venta #${id}` : 'Venta',
+    `Fecha: ${formatDateTime(new Date().toISOString())}`,
+    `Metodo: ${metodoPago}`,
+    '',
+    'Productos:',
+    ...items.map(item => `${item.cantidad} x ${item.nombre} ${money(item.total)}`),
+    '',
+    `Total: ${money(total)}`,
+    '',
+    'Gracias por su compra.'
   ].join('\n')
 }
 
@@ -551,7 +590,10 @@ const renderPedidos = (pedidos) => {
       </td>
       <td>${escapeHtml(formatDateTime(pedido.fechaEntrega))}</td>
       <td>${escapeHtml(pedido.detalle)}</td>
-      <td>${money(pedido.total)}</td>
+      <td>
+        ${money(pedido.total)}
+        <small>Anticipo ${money(pedido.anticipo)}</small>
+      </td>
       <td><span class="status-pill">${escapeHtml(pedido.estado)}</span></td>
       <td>${renderActionButtons('pedido', pedido.id)}</td>
     </tr>
@@ -569,7 +611,10 @@ const renderVentas = (ventas) => {
   ventasContainer.innerHTML = ventas.map(venta => `
     <tr>
       <td>${escapeHtml(formatDateTime(venta.createdAt))}</td>
-      <td>${escapeHtml(venta.metodoPago)}</td>
+      <td>
+        ${escapeHtml(venta.metodoPago)}
+        <small>${escapeHtml(venta.tipo || 'Venta')}</small>
+      </td>
       <td>${escapeHtml(summarizeItems(venta.items))}</td>
       <td>${money(venta.total)}</td>
       <td>${renderActionButtons('venta', venta.id)}</td>
@@ -786,18 +831,33 @@ const renderClienteModal = (cliente = null) => {
 
 const renderPedidoModal = (pedido = null) => {
   const isEditing = Boolean(pedido)
+  const clienteOptions = clientesState.map(cliente => `
+    <option value="${escapeHtml(cliente.id)}" data-nombre="${escapeHtml(cliente.nombre)}" data-telefono="${escapeHtml(cliente.telefono || '')}" ${cliente.nombre === pedido?.cliente ? 'selected' : ''}>
+      ${escapeHtml(cliente.nombre)}
+    </option>
+  `).join('')
+  const anticipo = Number(pedido?.anticipo || 0)
+  const saldo = Math.max(Number(pedido?.total || 0) - anticipo, 0)
 
   modalTitle.innerText = isEditing ? 'Editar Pedido' : 'Nuevo Pedido'
   modalBody.innerHTML = `
     <form data-resource="pedido" ${isEditing ? `data-id="${escapeHtml(pedido.id)}"` : ''}>
       <div class="form-group">
+        <label>Cliente registrado</label>
+        <select id="pedido-cliente-select">
+          <option value="">Seleccionar cliente</option>
+          ${clienteOptions}
+        </select>
+      </div>
+
+      <div class="form-group">
         <label>Cliente</label>
-        <input name="cliente" type="text" placeholder="Nombre del cliente" value="${escapeHtml(pedido?.cliente || '')}" required>
+        <input id="pedido-cliente" name="cliente" type="text" placeholder="Nombre del cliente" value="${escapeHtml(pedido?.cliente || '')}" required>
       </div>
 
       <div class="form-group">
         <label>Tel&eacute;fono</label>
-        <input name="telefono" type="text" placeholder="2481234567" value="${escapeHtml(pedido?.telefono || '')}">
+        <input id="pedido-telefono" name="telefono" type="text" placeholder="2481234567" value="${escapeHtml(pedido?.telefono || '')}">
       </div>
 
       <div class="form-group">
@@ -812,7 +872,33 @@ const renderPedidoModal = (pedido = null) => {
 
       <div class="form-group">
         <label>Total estimado</label>
-        <input name="total" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(pedido?.total ?? 0)}">
+        <input id="pedido-total" name="total" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(pedido?.total ?? 0)}">
+      </div>
+
+      <div class="form-group">
+        <label>Anticipo</label>
+        <input id="pedido-anticipo" name="anticipo" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(pedido?.anticipo ?? 0)}">
+      </div>
+
+      <div class="form-group">
+        <label>M&eacute;todo del anticipo</label>
+        <select name="metodoAnticipo">
+          <option value="">Sin anticipo</option>
+          <option ${pedido?.metodoAnticipo === 'Efectivo' ? 'selected' : ''}>Efectivo</option>
+          <option ${pedido?.metodoAnticipo === 'Tarjeta' ? 'selected' : ''}>Tarjeta</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>M&eacute;todo al entregar</label>
+        <select name="metodoEntrega">
+          <option>Efectivo</option>
+          <option>Tarjeta</option>
+        </select>
+      </div>
+
+      <div class="form-summary">
+        Saldo pendiente: <strong id="pedido-saldo">${money(saldo)}</strong>
       </div>
 
       <div class="form-group">
@@ -934,9 +1020,10 @@ const handleActionClick = async (event) => {
   }
 
   if (actionButton.dataset.action === 'delete') {
+    const recordName = record.nombre || record.cliente || record.concepto || `#${record.id}`
     const shouldDelete = await showAppDialog({
       title: 'Eliminar registro',
-      message: `Eliminar ${config.label} "${record.nombre}"?`,
+      message: `Eliminar ${config.label} "${recordName}"?`,
       confirmText: 'Eliminar',
       danger: true
     })
@@ -1021,52 +1108,77 @@ cartItemsContainer.addEventListener('input', (event) => {
   renderTicket()
 })
 
-payButtons.forEach(button => {
-  button.addEventListener('click', async () => {
-    if (!ticketItems.length) {
-      await showAppDialog({
-        title: 'Ticket vacio',
-        message: 'Agrega productos al ticket antes de cobrar.',
-        confirmText: 'Entendido',
-        showCancel: false
-      })
-      return
-    }
-
-    const total = ticketItems.reduce((sum, item) => sum + getWholesalePrice(item) * item.cantidad, 0)
-    const shouldClearTicket = await showAppDialog({
-      title: 'Confirmar cobro',
-      message: `Cobrar ${money(total)} y limpiar el ticket?`,
-      confirmText: 'Cobrar',
-      cancelText: 'Cancelar'
+chargeTicket.addEventListener('click', async () => {
+  if (!ticketItems.length) {
+    await showAppDialog({
+      title: 'Ticket vacio',
+      message: 'Agrega productos al ticket antes de cobrar.',
+      confirmText: 'Entendido',
+      showCancel: false
     })
+    return
+  }
 
-    if (!shouldClearTicket) {
-      return
-    }
-
-    await apiRequest('/api/ventas', {
-      method: 'POST',
-      body: JSON.stringify({
-        total,
-        metodoPago: button.classList.contains('card') ? 'Tarjeta' : 'Efectivo',
-        items: ticketItems.map(item => ({
-          id: item.id,
-          nombre: item.nombre,
-          cantidad: item.cantidad,
-          precioUnitario: getWholesalePrice(item),
-          total: getWholesalePrice(item) * item.cantidad
-        }))
-      })
+  const metodoPago = ticketPaymentMethod.value
+  const items = getTicketItems()
+  const total = getTicketTotal()
+  const venta = await apiRequest('/api/ventas', {
+    method: 'POST',
+    body: JSON.stringify({
+      total,
+      metodoPago,
+      tipo: 'Venta',
+      concepto: 'Venta de mostrador',
+      items
     })
-
-    ticketItems = []
-    renderTicket()
-    loadData()
   })
+
+  await showTicketDialog('Ticket de compra', buildVentaTicket({
+    id: venta.id,
+    metodoPago,
+    items,
+    total
+  }))
+
+  ticketItems = []
+  renderTicket()
+  loadData()
+})
+
+cancelTicket.addEventListener('click', async () => {
+  if (!ticketItems.length) {
+    return
+  }
+
+  const shouldCancel = await showAppDialog({
+    title: 'Cancelar ticket',
+    message: 'Limpiar el ticket actual?',
+    confirmText: 'Limpiar',
+    cancelText: 'Volver'
+  })
+
+  if (!shouldCancel) {
+    return
+  }
+
+  ticketItems = []
+  renderTicket()
 })
 
 modalBody.addEventListener('change', async (event) => {
+  if (event.target.id === 'pedido-cliente-select') {
+    const selectedOption = event.target.selectedOptions[0]
+    const clienteInput = document.getElementById('pedido-cliente')
+    const telefonoInput = document.getElementById('pedido-telefono')
+
+    if (selectedOption?.value && clienteInput && telefonoInput) {
+      clienteInput.value = selectedOption.dataset.nombre || ''
+      telefonoInput.value = selectedOption.dataset.telefono || ''
+    }
+
+    return
+  }
+
   if (event.target.id !== 'producto-imagen-file') {
     return
   }
@@ -1086,6 +1198,22 @@ modalBody.addEventListener('change', async (event) => {
   preview.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="Vista previa del producto">`
 })
 
+modalBody.addEventListener('input', (event) => {
+  if (!['pedido-total', 'pedido-anticipo'].includes(event.target.id)) {
+    return
+  }
+
+  const totalInput = document.getElementById('pedido-total')
+  const anticipoInput = document.getElementById('pedido-anticipo')
+  const saldo = document.getElementById('pedido-saldo')
+
+  if (!totalInput || !anticipoInput || !saldo) {
+    return
+  }
+
+  saldo.innerText = money(Math.max(Number(totalInput.value || 0) - Number(anticipoInput.value || 0), 0))
+})
+
 modalBody.addEventListener('submit', async (event) => {
   event.preventDefault()
 
@@ -1096,13 +1224,17 @@ modalBody.addEventListener('submit', async (event) => {
   const isEditing = Boolean(form.dataset.id)
   const config = resourceConfig[resource]
 
-  await apiRequest(isEditing ? `${config.path}/${form.dataset.id}` : config.path, {
+  const savedRecord = await apiRequest(isEditing ? `${config.path}/${form.dataset.id}` : config.path, {
     method: isEditing ? 'PUT' : 'POST',
     body: JSON.stringify(data)
   })
 
   closeCurrentModal()
-  loadData()
+  await loadData()
+
+  if (resource === 'pedido') {
+    await showTicketDialog('Ticket de pedido', buildPedidoTicket(savedRecord))
+  }
 })
 
 closeModal.addEventListener('click', closeCurrentModal)

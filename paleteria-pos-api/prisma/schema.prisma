@@ -18,6 +18,8 @@ model Producto {
 
   categoria   String
 
+  imagen      String?
+
   stock       Int      @default(0)
 
   createdAt   DateTime @default(now())

@@ -12,6 +12,8 @@ const clientesContainer = document.getElementById('clientes-container')
 const proveedoresContainer = document.getElementById('proveedores-container')
 const settingsGrid = document.querySelector('#configuracion .settings-grid')
 
+let productosState = []
+
 const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
 const LEGACY_LOCAL_API_URLS = new Set([
   'http://localhost:3000',
@@ -57,6 +59,36 @@ const money = (value) => {
   return `$${Number(value || 0).toFixed(2)}`
 }
 
+const fileToDataUrl = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.addEventListener('load', () => {
+      const image = new Image()
+
+      image.addEventListener('load', () => {
+        const maxSize = 900
+        const scale = Math.min(maxSize / image.width, maxSize / image.height, 1)
+        const canvas = document.createElement('canvas')
+
+        canvas.width = Math.round(image.width * scale)
+        canvas.height = Math.round(image.height * scale)
+
+        const context = canvas.getContext('2d')
+        context.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+        resolve(canvas.toDataURL('image/jpeg', 0.82))
+      })
+
+      image.addEventListener('error', reject)
+      image.src = reader.result
+    })
+
+    reader.addEventListener('error', reject)
+    reader.readAsDataURL(file)
+  })
+}
+
 const setTableMessage = (container, columns, message) => {
   container.innerHTML = `
     <tr class="empty-row">
@@ -73,6 +105,8 @@ const closeCurrentModal = () => {
 }
 
 const renderProductos = (productos) => {
+  productosState = productos
+
   if (!productos.length) {
     productsContainer.innerHTML = `
       <div class="empty-state">
@@ -86,9 +120,17 @@ const renderProductos = (productos) => {
 
   productsContainer.innerHTML = productos.map(producto => `
     <article class="product-card">
+      <div class="product-image">
+        ${producto.imagen
+          ? `<img src="${escapeHtml(producto.imagen)}" alt="${escapeHtml(producto.nombre)}">`
+          : '<span>&#127848;</span>'}
+      </div>
       <h3>${escapeHtml(producto.nombre)}</h3>
       <p>${money(producto.precio)}</p>
       <span>${escapeHtml(producto.categoria)} &middot; Stock ${escapeHtml(producto.stock)}</span>
+      <button class="edit-product-btn" type="button" data-product-id="${escapeHtml(producto.id)}">
+        Editar
+      </button>
     </article>
   `).join('')
 }
@@ -195,40 +237,56 @@ const renderApiSettings = () => {
   })
 }
 
-const openModal = (type) => {
+const renderProductModal = (producto = null) => {
+  const isEditing = Boolean(producto)
+
+  modalTitle.innerText = isEditing ? 'Editar Producto' : 'Nuevo Producto'
+  modalBody.innerHTML = `
+    <form data-resource="producto" ${isEditing ? `data-id="${escapeHtml(producto.id)}"` : ''}>
+      <div class="form-group">
+        <label>Nombre del producto</label>
+        <input name="nombre" type="text" placeholder="Ej. Paleta Mango" value="${escapeHtml(producto?.nombre || '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Foto</label>
+        <label class="image-upload">
+          <input id="producto-imagen-file" type="file" accept="image/*">
+          <span>Seleccionar foto</span>
+        </label>
+        <input id="producto-imagen" name="imagen" type="hidden" value="${escapeHtml(producto?.imagen || '')}">
+        <div class="image-preview ${producto?.imagen ? 'has-image' : ''}" id="producto-imagen-preview">
+          ${producto?.imagen
+            ? `<img src="${escapeHtml(producto.imagen)}" alt="${escapeHtml(producto.nombre)}">`
+            : '<span>Sin foto</span>'}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Precio</label>
+        <input name="precio" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(producto?.precio || '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Categor&iacute;a</label>
+        <input name="categoria" type="text" placeholder="Ej. Paletas de agua" value="${escapeHtml(producto?.categoria || '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Stock</label>
+        <input name="stock" type="number" min="0" step="1" placeholder="0" value="${escapeHtml(producto?.stock ?? 0)}">
+      </div>
+
+      <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar producto'}</button>
+    </form>
+  `
+}
+
+const openModal = (type, record = null) => {
   modal.classList.add('show-modal')
 
   if (type === 'producto') {
-    modalTitle.innerText = 'Nuevo Producto'
-    modalBody.innerHTML = `
-      <form data-resource="producto">
-        <div class="form-group">
-          <label>Nombre del producto</label>
-          <input name="nombre" type="text" placeholder="Ej. Paleta Mango" required>
-        </div>
-
-        <div class="form-group">
-          <label>Precio</label>
-          <input name="precio" type="number" min="0" step="0.01" placeholder="$0.00" required>
-        </div>
-
-        <div class="form-group">
-          <label>Categor&iacute;a</label>
-          <select name="categoria" required>
-            <option>Paletas</option>
-            <option>Helados</option>
-            <option>Snacks</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Stock</label>
-          <input name="stock" type="number" min="0" step="1" placeholder="0" value="0">
-        </div>
-
-        <button class="save-btn" type="submit">Guardar producto</button>
-      </form>
-    `
+    renderProductModal(record)
   }
 
   if (type === 'materia') {
@@ -327,6 +385,40 @@ document.querySelectorAll('.add-btn').forEach(button => {
   })
 })
 
+productsContainer.addEventListener('click', (event) => {
+  const editButton = event.target.closest('.edit-product-btn')
+
+  if (!editButton) {
+    return
+  }
+
+  const producto = productosState.find(item => String(item.id) === editButton.dataset.productId)
+
+  if (producto) {
+    openModal('producto', producto)
+  }
+})
+
+modalBody.addEventListener('change', async (event) => {
+  if (event.target.id !== 'producto-imagen-file') {
+    return
+  }
+
+  const [file] = event.target.files
+
+  if (!file) {
+    return
+  }
+
+  const dataUrl = await fileToDataUrl(file)
+  const imageInput = document.getElementById('producto-imagen')
+  const preview = document.getElementById('producto-imagen-preview')
+
+  imageInput.value = dataUrl
+  preview.classList.add('has-image')
+  preview.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="Vista previa del producto">`
+})
+
 modalBody.addEventListener('submit', async (event) => {
   event.preventDefault()
 
@@ -334,6 +426,7 @@ modalBody.addEventListener('submit', async (event) => {
   const formData = new FormData(form)
   const data = Object.fromEntries(formData.entries())
   const resource = form.dataset.resource
+  const isEditingProduct = resource === 'producto' && form.dataset.id
 
   const paths = {
     producto: '/api/productos',
@@ -342,8 +435,8 @@ modalBody.addEventListener('submit', async (event) => {
     proveedor: '/api/proveedores'
   }
 
-  await apiRequest(paths[resource], {
-    method: 'POST',
+  await apiRequest(isEditingProduct ? `${paths[resource]}/${form.dataset.id}` : paths[resource], {
+    method: isEditingProduct ? 'PUT' : 'POST',
     body: JSON.stringify(data)
   })
 

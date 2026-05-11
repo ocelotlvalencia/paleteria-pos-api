@@ -12,7 +12,7 @@ const adapter = new PrismaNeon({
 const prisma = new PrismaClient({ adapter })
 
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '6mb' }))
 
 const asyncHandler = (handler) => async (req, res, next) => {
   try {
@@ -55,11 +55,29 @@ app.post('/api/productos', asyncHandler(async (req, res) => {
       nombre: req.body.nombre,
       precio: toNumber(req.body.precio),
       categoria: req.body.categoria,
+      imagen: req.body.imagen || null,
       stock: toNumber(req.body.stock)
     }
   })
 
   res.status(201).json(producto)
+}))
+
+app.put('/api/productos/:id', asyncHandler(async (req, res) => {
+  const producto = await prisma.producto.update({
+    where: {
+      id: toNumber(req.params.id)
+    },
+    data: {
+      nombre: req.body.nombre,
+      precio: toNumber(req.body.precio),
+      categoria: req.body.categoria,
+      imagen: req.body.imagen || null,
+      stock: toNumber(req.body.stock)
+    }
+  })
+
+  res.json(producto)
 }))
 
 app.get('/api/materia-prima', asyncHandler(async (req, res) => {

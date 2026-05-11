@@ -36,7 +36,7 @@ body {
 
   border-radius: 30px;
 
-  padding: 25px;
+  padding: 20px;
 
   display: flex;
   flex-direction: column;
@@ -49,20 +49,20 @@ body {
   display: flex;
   align-items: center;
 
-  gap: 15px;
+  gap: 12px;
 
-  margin-bottom: 35px;
+  margin-bottom: 22px;
 }
 
 .logo {
-  width: 70px;
-  height: 70px;
+  width: 58px;
+  height: 58px;
 
   object-fit: contain;
 }
 
 .sidebar-header h2 {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
 
   color: #111827;
@@ -75,12 +75,12 @@ body {
 }
 
 .menu-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
 
   color: #9ca3af;
 
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 /* CATEGORY */
@@ -90,18 +90,18 @@ body {
 
   background: transparent;
 
-  padding: 18px;
+  padding: 13px 14px;
 
-  border-radius: 18px;
+  border-radius: 16px;
 
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
 
   text-align: left;
 
   cursor: pointer;
 
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 
   transition: 0.2s;
 
@@ -114,12 +114,12 @@ body {
 
 .header-icon-btn {
   margin-left: auto;
-  flex: 0 0 28px;
+  flex: 0 0 42px;
 
   border: none;
 
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
 
   border-radius: 16px;
 
@@ -127,7 +127,7 @@ body {
 
   color: white;
 
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
 
   cursor: pointer;
@@ -462,6 +462,50 @@ td .row-actions {
 
   box-shadow:
     0 8px 25px rgba(0,0,0,0.04);
+}
+
+.cash-summary {
+  display: grid;
+
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  gap: 16px;
+
+  margin-bottom: 20px;
+}
+
+.summary-card {
+  background: white;
+
+  border-radius: 22px;
+
+  padding: 20px;
+
+  box-shadow:
+    0 8px 25px rgba(0,0,0,0.04);
+}
+
+.summary-card span {
+  display: block;
+
+  color: #6b7280;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.summary-card strong {
+  display: block;
+
+  margin-top: 8px;
+
+  color: #111827;
+
+  font-size: 28px;
+}
+
+.summary-card.final strong {
+  color: #047857;
 }
 
 table {
@@ -1455,6 +1499,7 @@ body.dark-mode .product-card h3,
 body.dark-mode td,
 body.dark-mode .cart-item h4,
 body.dark-mode .cart-item strong,
+body.dark-mode .summary-card strong,
 body.dark-mode .total-row.final,
 body.dark-mode .modal-header h2,
 body.dark-mode .app-dialog-content h2,
@@ -1467,6 +1512,7 @@ body.dark-mode .sidebar-header p,
 body.dark-mode .topbar span,
 body.dark-mode .cart-header span,
 body.dark-mode .product-card > span,
+body.dark-mode .summary-card span,
 body.dark-mode .cart-item p,
 body.dark-mode .empty-state p,
 body.dark-mode .setting-card p,
@@ -1507,6 +1553,7 @@ body.dark-mode .quantity-control button {
 
 body.dark-mode .table-container,
 body.dark-mode .product-card,
+body.dark-mode .summary-card,
 body.dark-mode .setting-card,
 body.dark-mode .empty-state,
 body.dark-mode .modal-content,
@@ -1617,6 +1664,10 @@ body.dark-mode .stock-alert {
 
 body.dark-mode .low-stock-row {
   background: rgba(251,146,60,0.08);
+}
+
+body.dark-mode .summary-card.final strong {
+  color: #34d399;
 }
 
 body.dark-mode .ticket-dialog pre {

@@ -103,6 +103,23 @@ model Venta {
   createdAt     DateTime @default(now())
 }
 
+/* GASTOS */
+
+model Gasto {
+
+  id            Int      @id @default(autoincrement())
+
+  concepto      String
+
+  categoria     String   @default("General")
+
+  monto         Float
+
+  notas         String?
+
+  createdAt     DateTime @default(now())
+}
+
 /* PEDIDOS */
 
 model Pedido {

@@ -11,7 +11,11 @@ const materiaContainer = document.getElementById('materia-container')
 const clientesContainer = document.getElementById('clientes-container')
 const pedidosContainer = document.getElementById('pedidos-container')
 const ventasContainer = document.getElementById('ventas-container')
+const gastosContainer = document.getElementById('gastos-container')
 const proveedoresContainer = document.getElementById('proveedores-container')
+const cashTotalSales = document.getElementById('cash-total-sales')
+const cashTotalExpenses = document.getElementById('cash-total-expenses')
+const cashBalance = document.getElementById('cash-balance')
 const stockAlerts = document.getElementById('stock-alerts')
 const settingsGrid = document.querySelector('#configuracion .settings-grid')
 const systemStatus = document.getElementById('system-status')
@@ -35,6 +39,7 @@ let materiaState = []
 let clientesState = []
 let pedidosState = []
 let ventasState = []
+let gastosState = []
 let proveedoresState = []
 let ticketItems = []
 let apiUrlState = DEFAULT_API_URL
@@ -80,6 +85,12 @@ const resourceConfig = {
     path: '/api/ventas',
     label: 'venta',
     state: () => ventasState
+  },
+  gasto: {
+    path: '/api/gastos',
+    label: 'gasto',
+    state: () => gastosState,
+    open: (record) => openModal('gasto', record)
   },
   proveedor: {
     path: '/api/proveedores',
@@ -770,6 +781,34 @@ const renderVentas = (ventas) => {
   `).join('')
 }
 
+const renderCorteCaja = (corte = {}) => {
+  const totalVentas = Number(corte.totalVentas || 0)
+  const totalGastos = Number(corte.totalGastos || 0)
+  const saldo = Number(corte.saldo ?? totalVentas - totalGastos)
+  const gastos = Array.isArray(corte.gastos) ? corte.gastos : []
+
+  gastosState = gastos
+  cashTotalSales.innerText = money(totalVentas)
+  cashTotalExpenses.innerText = money(totalGastos)
+  cashBalance.innerText = money(saldo)
+
+  if (!gastos.length) {
+    setTableMessage(gastosContainer, 6, 'No hay gastos registrados')
+    return
+  }
+
+  gastosContainer.innerHTML = gastos.map(gasto => `
+    <tr>
+      <td>${escapeHtml(formatDateTime(gasto.createdAt))}</td>
+      <td>${escapeHtml(gasto.concepto)}</td>
+      <td>${escapeHtml(gasto.categoria || 'General')}</td>
+      <td>${money(gasto.monto)}</td>
+      <td>${escapeHtml(gasto.notas || 'Sin notas')}</td>
+      <td>${renderActionButtons('gasto', gasto.id)}</td>
+    </tr>
+  `).join('')
+}
+
 const renderProveedores = (proveedores) => {
   proveedoresState = proveedores
 
@@ -809,6 +848,16 @@ const loadData = async () => {
     renderProveedores(proveedores)
     renderPedidos(pedidos)
     renderVentas(ventas)
+
+    try {
+      renderCorteCaja(await apiRequest('/api/corte-caja'))
+    } catch (error) {
+      renderCorteCaja({
+        totalVentas: ventas.reduce((sum, venta) => sum + Number(venta.total || 0), 0),
+        totalGastos: 0,
+        gastos: []
+      })
+    }
   } catch (error) {
     setSystemStatus('offline', 'Sin conexion a API o base')
 
@@ -824,6 +873,8 @@ const loadData = async () => {
     setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
     setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
     setTableMessage(ventasContainer, 5, 'No se pudieron cargar las ventas')
+    setTableMessage(gastosContainer, 6, 'No se pudieron cargar los gastos')
+    renderCorteCaja()
   }
 }
 
@@ -1099,6 +1150,45 @@ const renderProveedorModal = (proveedor = null) => {
   `
 }
 
+const renderGastoModal = (gasto = null) => {
+  const isEditing = Boolean(gasto)
+
+  modalTitle.innerText = isEditing ? 'Editar Gasto' : 'Nuevo Gasto'
+  modalBody.innerHTML = `
+    <form data-resource="gasto" ${isEditing ? `data-id="${escapeHtml(gasto.id)}"` : ''}>
+      <div class="form-group">
+        <label>Concepto</label>
+        <input name="concepto" type="text" placeholder="Ej. Compra de insumos" value="${escapeHtml(gasto?.concepto || '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Categoria</label>
+        <select name="categoria">
+          <option ${!gasto || gasto?.categoria === 'General' ? 'selected' : ''}>General</option>
+          <option ${gasto?.categoria === 'Insumos' ? 'selected' : ''}>Insumos</option>
+          <option ${gasto?.categoria === 'Servicios' ? 'selected' : ''}>Servicios</option>
+          <option ${gasto?.categoria === 'Renta' ? 'selected' : ''}>Renta</option>
+          <option ${gasto?.categoria === 'Nomina' ? 'selected' : ''}>Nomina</option>
+          <option ${gasto?.categoria === 'Mantenimiento' ? 'selected' : ''}>Mantenimiento</option>
+          <option ${gasto?.categoria === 'Otro' ? 'selected' : ''}>Otro</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Monto</label>
+        <input name="monto" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(gasto?.monto ?? '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Notas</label>
+        <textarea name="notas" placeholder="Detalles opcionales">${escapeHtml(gasto?.notas || '')}</textarea>
+      </div>
+
+      <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar gasto'}</button>
+    </form>
+  `
+}
+
 const openModal = (type, record = null) => {
   modal.classList.add('show-modal')
 
@@ -1120,6 +1210,10 @@ const openModal = (type, record = null) => {
 
   if (type === 'proveedor') {
     renderProveedorModal(record)
+  }
+
+  if (type === 'gasto') {
+    renderGastoModal(record)
   }
 
   enhanceCustomSelects(modalBody)
@@ -1235,6 +1329,7 @@ materiaContainer.addEventListener('click', handleActionClick)
 clientesContainer.addEventListener('click', handleActionClick)
 pedidosContainer.addEventListener('click', handleActionClick)
 ventasContainer.addEventListener('click', handleActionClick)
+gastosContainer.addEventListener('click', handleActionClick)
 proveedoresContainer.addEventListener('click', handleActionClick)
 
 productsContainer.addEventListener('click', (event) => {

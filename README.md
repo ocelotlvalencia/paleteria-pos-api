@@ -1,6 +1,6 @@
 # Manual de usuario - Punto de Venta
 
-Este manual explica como usar la aplicacion **Punto de Venta** para administrar productos, clientes, pedidos, ventas, proveedores y tickets.
+Este manual explica como usar la aplicacion **Punto de Venta** para administrar productos, clientes, pedidos, ventas, gastos, proveedores y tickets.
 
 ## 1. Primer inicio
 
@@ -15,7 +15,7 @@ El sistema usa una API en linea. Si aparece un mensaje de error al cargar datos,
 
 La aplicacion se divide en tres zonas:
 
-- **Menu lateral:** permite cambiar entre Productos, Materia Prima, Clientes, Pedidos, Ventas, Proveedores y Configuracion.
+- **Menu lateral:** permite cambiar entre Productos, Materia Prima, Clientes, Pedidos, Ventas, Corte de caja, Proveedores y Configuracion.
 - **Area central:** muestra la seccion seleccionada y sus registros.
 - **Ticket:** aparece a la derecha y sirve para cobrar productos.
 
@@ -141,7 +141,27 @@ La tabla muestra:
 
 Desde las acciones puedes reimprimir o visualizar el ticket de una venta.
 
-## 9. Proveedores
+## 9. Corte de caja
+
+En **Corte de caja** puedes revisar el total vendido, los gastos registrados y el saldo resultante.
+
+La seccion muestra:
+
+- Total de ventas.
+- Total de gastos.
+- Saldo final.
+- Historial de gastos.
+
+Para registrar un gasto:
+
+1. Entra a **Corte de caja**.
+2. Presiona **+ Nuevo gasto**.
+3. Captura concepto, categoria, monto y notas opcionales.
+4. Presiona **Guardar gasto**.
+
+Puedes editar o eliminar gastos desde los botones de accion en la tabla.
+
+## 10. Proveedores
 
 En **Proveedores** puedes registrar a quienes abastecen materia prima.
 
@@ -154,7 +174,7 @@ Para agregar un proveedor:
 
 Los proveedores registrados aparecen como opcion al crear o editar materia prima.
 
-## 10. Configuracion
+## 11. Configuracion
 
 La seccion **Configuracion** esta bloqueada desde la interfaz principal.
 
@@ -178,7 +198,7 @@ Valores posibles para `THEME`:
 
 Normalmente no necesitas editar este archivo, porque el modo claro/oscuro se guarda automaticamente al cambiarlo desde la app.
 
-## 11. Modo claro y modo oscuro
+## 12. Modo claro y modo oscuro
 
 Para cambiar el tema:
 
@@ -186,7 +206,7 @@ Para cambiar el tema:
 2. La app cambiara entre modo claro y oscuro.
 3. Al cerrar y abrir de nuevo, se conservara el ultimo modo usado.
 
-## 12. Problemas comunes
+## 13. Problemas comunes
 
 ### La app no carga productos o ventas
 
@@ -212,15 +232,16 @@ Verifica que:
 
 Cambia el tema con el boton de la luna. Si el problema continua, cierra y abre la aplicacion para que cargue nuevamente el tema guardado.
 
-## 13. Recomendaciones de uso
+## 14. Recomendaciones de uso
 
 - Registra primero proveedores y materia prima si quieres llevar control de insumos.
 - Registra productos antes de comenzar ventas.
 - Usa clientes registrados para pedidos frecuentes.
+- Registra los gastos en **Corte de caja** para conocer el saldo real.
 - Revisa la seccion **Ventas** al final del dia para consultar cobros realizados.
 - Manten actualizados los precios y el stock de productos.
 
-## 14. Comandos para desarrollo
+## 15. Comandos para desarrollo
 
 Esta seccion es solo para mantenimiento tecnico.
 

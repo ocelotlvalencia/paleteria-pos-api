@@ -346,6 +346,73 @@ app.delete('/api/ventas/:id', asyncHandler(async (req, res) => {
   res.status(204).send()
 }))
 
+app.get('/api/gastos', asyncHandler(async (req, res) => {
+  const gastos = await prisma.gasto.findMany({
+    orderBy: { createdAt: 'desc' }
+  })
+
+  res.json(gastos)
+}))
+
+app.post('/api/gastos', asyncHandler(async (req, res) => {
+  const gasto = await prisma.gasto.create({
+    data: {
+      concepto: req.body.concepto,
+      categoria: req.body.categoria || 'General',
+      monto: toNumber(req.body.monto),
+      notas: req.body.notas || null
+    }
+  })
+
+  res.status(201).json(gasto)
+}))
+
+app.put('/api/gastos/:id', asyncHandler(async (req, res) => {
+  const gasto = await prisma.gasto.update({
+    where: {
+      id: toNumber(req.params.id)
+    },
+    data: {
+      concepto: req.body.concepto,
+      categoria: req.body.categoria || 'General',
+      monto: toNumber(req.body.monto),
+      notas: req.body.notas || null
+    }
+  })
+
+  res.json(gasto)
+}))
+
+app.delete('/api/gastos/:id', asyncHandler(async (req, res) => {
+  await prisma.gasto.delete({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  res.status(204).send()
+}))
+
+app.get('/api/corte-caja', asyncHandler(async (req, res) => {
+  const [ventas, gastos] = await Promise.all([
+    prisma.venta.findMany(),
+    prisma.gasto.findMany({
+      orderBy: { createdAt: 'desc' }
+    })
+  ])
+  const totalVentas = ventas.reduce((sum, venta) => sum + Number(venta.total || 0), 0)
+  const totalGastos = gastos.reduce((sum, gasto) => sum + Number(gasto.monto || 0), 0)
+
+  res.json({
+    totalVentas,
+    totalGastos,
+    saldo: totalVentas - totalGastos,
+    ventasCount: ventas.length,
+    gastosCount: gastos.length,
+    gastos
+  })
+}))
+
 app.get('/api/pedidos', asyncHandler(async (req, res) => {
   const pedidos = await prisma.pedido.findMany({
     orderBy: { fechaEntrega: 'asc' }

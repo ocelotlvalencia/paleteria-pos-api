@@ -12,7 +12,7 @@ const getInstallConfigPath = () => {
     return path.join(__dirname, 'docs', 'paleteria-pos.config')
   }
 
-  return path.join(path.dirname(app.getPath('exe')), 'paleteria-pos.config')
+  return path.join(app.getPath('userData'), 'paleteria-pos.config')
 }
 
 const ensureConfigFile = () => {
@@ -20,6 +20,9 @@ const ensureConfigFile = () => {
   const configDirectory = path.dirname(configPath)
   const fallbackDirectory = path.join(app.getPath('documents'), 'Paleteria Nopalucan POS')
   const fallbackPath = path.join(fallbackDirectory, 'paleteria-pos.config')
+  const legacyPackagedPath = app.isPackaged
+    ? path.join(path.dirname(app.getPath('exe')), 'paleteria-pos.config')
+    : ''
 
   if (!fs.existsSync(configDirectory)) {
     fs.mkdirSync(configDirectory, { recursive: true })
@@ -27,7 +30,11 @@ const ensureConfigFile = () => {
 
   if (!fs.existsSync(configPath)) {
     try {
-      fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\n`, 'utf8')
+      if (legacyPackagedPath && fs.existsSync(legacyPackagedPath)) {
+        fs.copyFileSync(legacyPackagedPath, configPath)
+      } else {
+        fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\n`, 'utf8')
+      }
     } catch (error) {
       if (!fs.existsSync(fallbackDirectory)) {
         fs.mkdirSync(fallbackDirectory, { recursive: true })
@@ -70,11 +77,26 @@ const saveConfig = (nextConfig) => {
     ...nextConfig
   }
 
-  fs.writeFileSync(
-    configPath,
-    `API_URL=${config.API_URL}\nTHEME=${config.THEME}\n`,
-    'utf8'
-  )
+  try {
+    fs.writeFileSync(
+      configPath,
+      `API_URL=${config.API_URL}\nTHEME=${config.THEME}\n`,
+      'utf8'
+    )
+  } catch (error) {
+    const fallbackDirectory = path.join(app.getPath('documents'), 'Paleteria Nopalucan POS')
+    const fallbackPath = path.join(fallbackDirectory, 'paleteria-pos.config')
+
+    if (!fs.existsSync(fallbackDirectory)) {
+      fs.mkdirSync(fallbackDirectory, { recursive: true })
+    }
+
+    fs.writeFileSync(
+      fallbackPath,
+      `API_URL=${config.API_URL}\nTHEME=${config.THEME}\n`,
+      'utf8'
+    )
+  }
 }
 
 const readApiUrlFromConfig = () => {

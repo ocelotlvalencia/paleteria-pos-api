@@ -71,6 +71,11 @@
         <span>Ventas</span>
       </button>
 
+      <button class="category" data-section="corte-caja">
+        <span class="nav-icon">&#128179;</span>
+        <span>Corte de caja</span>
+      </button>
+
       <button class="category" data-section="proveedores">
         <span class="nav-icon">&#128666;</span>
         <span>Proveedores</span>
@@ -296,6 +301,72 @@
               <tr class="empty-row">
                 <td colspan="5">
                   No hay ventas registradas
+                </td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </section>
+
+      <!-- CORTE DE CAJA -->
+      <section class="section" id="corte-caja">
+
+        <div class="topbar">
+
+          <div>
+            <h1>Corte de caja</h1>
+            <span>Control de ventas, gastos y saldo</span>
+          </div>
+
+          <button class="add-btn" data-type="gasto">
+            + Nuevo gasto
+          </button>
+
+        </div>
+
+        <div class="cash-summary" id="cash-summary">
+
+          <div class="summary-card">
+            <span>Ventas</span>
+            <strong id="cash-total-sales">$0.00</strong>
+          </div>
+
+          <div class="summary-card">
+            <span>Gastos</span>
+            <strong id="cash-total-expenses">$0.00</strong>
+          </div>
+
+          <div class="summary-card final">
+            <span>Saldo</span>
+            <strong id="cash-balance">$0.00</strong>
+          </div>
+
+        </div>
+
+        <div class="table-container">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Concepto</th>
+                <th>Categoria</th>
+                <th>Monto</th>
+                <th>Notas</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody id="gastos-container">
+
+              <tr class="empty-row">
+                <td colspan="6">
+                  No hay gastos registrados
                 </td>
               </tr>
 

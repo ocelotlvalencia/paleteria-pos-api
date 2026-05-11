@@ -5,16 +5,38 @@ const path = require('path')
 let mainWindow
 const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
 
+const getInstallConfigPath = () => {
+  if (!app.isPackaged) {
+    return path.join(__dirname, 'docs', 'paleteria-pos.config')
+  }
+
+  return path.join(path.dirname(app.getPath('exe')), 'paleteria-pos.config')
+}
+
 const ensureConfigFile = () => {
-  const configDirectory = path.join(app.getPath('documents'), 'Paleteria Nopalucan POS')
-  const configPath = path.join(configDirectory, 'paleteria-pos.config')
+  const configPath = getInstallConfigPath()
+  const configDirectory = path.dirname(configPath)
+  const fallbackDirectory = path.join(app.getPath('documents'), 'Paleteria Nopalucan POS')
+  const fallbackPath = path.join(fallbackDirectory, 'paleteria-pos.config')
 
   if (!fs.existsSync(configDirectory)) {
     fs.mkdirSync(configDirectory, { recursive: true })
   }
 
   if (!fs.existsSync(configPath)) {
-    fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\n`, 'utf8')
+    try {
+      fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\n`, 'utf8')
+    } catch (error) {
+      if (!fs.existsSync(fallbackDirectory)) {
+        fs.mkdirSync(fallbackDirectory, { recursive: true })
+      }
+
+      if (!fs.existsSync(fallbackPath)) {
+        fs.writeFileSync(fallbackPath, `API_URL=${DEFAULT_API_URL}\n`, 'utf8')
+      }
+
+      return fallbackPath
+    }
   }
 
   return configPath

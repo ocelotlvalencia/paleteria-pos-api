@@ -112,6 +112,25 @@ body {
   gap: 12px;
 }
 
+.header-icon-btn {
+  margin-left: auto;
+
+  border: none;
+
+  width: 42px;
+  height: 42px;
+
+  border-radius: 14px;
+
+  background: #111827;
+
+  color: white;
+
+  font-size: 20px;
+
+  cursor: pointer;
+}
+
 .category:hover {
   background: rgba(0,0,0,0.04);
 }
@@ -120,6 +139,10 @@ body {
   background: #111827;
 
   color: white;
+}
+
+.category.locked-nav {
+  opacity: 0.48;
 }
 
 .nav-icon,
@@ -1185,10 +1208,6 @@ td small {
   margin-top: 10px;
 }
 
-.locked-section {
-  opacity: 0.58;
-}
-
 .locked-setting {
   position: relative;
 }
@@ -1202,10 +1221,6 @@ td small {
 
   line-height: 1.4;
   word-break: break-word;
-}
-
-.theme-toggle {
-  margin-top: 4px;
 }
 
 body.dark-mode {
@@ -1272,6 +1287,7 @@ body.dark-mode .api-settings-form input {
 body.dark-mode .category.active,
 body.dark-mode .save-btn,
 body.dark-mode .cash,
+body.dark-mode .header-icon-btn,
 body.dark-mode .image-upload,
 body.dark-mode .quantity-control button {
   background: #2563eb;
@@ -1287,6 +1303,13 @@ body.dark-mode .modal-content,
 body.dark-mode .app-dialog-content,
 body.dark-mode .quantity-control {
   background: #171c26;
+}
+
+body.dark-mode .form-group input,
+body.dark-mode .form-group select,
+body.dark-mode .form-group textarea,
+body.dark-mode .payment-method select {
+  color: #f9fafb;
 }
 
 body.dark-mode thead {

@@ -24,6 +24,12 @@
       "images/**/*",
       "package.json"
     ],
+    "extraFiles": [
+      {
+        "from": "docs/paleteria-pos.config",
+        "to": "paleteria-pos.config"
+      }
+    ],
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico"

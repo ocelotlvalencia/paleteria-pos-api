@@ -431,19 +431,11 @@ const renderActionButtons = (resource, id) => {
       ${resource === 'pedido'
         ? `<button class="action-btn ticket" type="button" data-action="ticket" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Ticket de pedido" aria-label="Ticket de pedido">
             &#129534;
-          </button>
-          <button class="action-btn status" type="button" data-action="status" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Cambiar estado" aria-label="Cambiar estado">
-            &#8635;
           </button>`
         : ''}
       ${resource === 'venta'
         ? `<button class="action-btn ticket" type="button" data-action="ticket" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Reimprimir ticket" aria-label="Reimprimir ticket">
             &#128438;
-          </button>`
-        : ''}
-      ${resource !== 'venta'
-        ? `<button class="action-btn edit" type="button" data-action="edit" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Editar" aria-label="Editar">
-            &#9998;
           </button>`
         : ''}
       <button class="action-btn delete" type="button" data-action="delete" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Eliminar" aria-label="Eliminar">

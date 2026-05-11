@@ -45,3 +45,5 @@ coverage/
 
 # ELECTRON BUILDER
 release/
+
+app/dist.zip

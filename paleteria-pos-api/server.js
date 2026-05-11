@@ -34,12 +34,15 @@ app.get('/', (req, res) => {
   })
 })
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', asyncHandler(async (req, res) => {
+  await prisma.$queryRaw`SELECT 1`
+
   res.json({
     ok: true,
-    service: 'paleteria-pos-api'
+    service: 'paleteria-pos-api',
+    database: 'connected'
   })
-})
+}))
 
 app.get('/api/productos', asyncHandler(async (req, res) => {
   const productos = await prisma.producto.findMany({

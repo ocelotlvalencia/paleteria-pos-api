@@ -11,11 +11,18 @@ const materiaContainer = document.getElementById('materia-container')
 const clientesContainer = document.getElementById('clientes-container')
 const proveedoresContainer = document.getElementById('proveedores-container')
 const settingsGrid = document.querySelector('#configuracion .settings-grid')
+const systemStatus = document.getElementById('system-status')
+const statusText = document.getElementById('status-text')
+const cartItemsContainer = document.getElementById('cart-items')
+const cartSubtotal = document.getElementById('cart-subtotal')
+const cartTotal = document.getElementById('cart-total')
+const payButtons = document.querySelectorAll('.pay-btn')
 
 let productosState = []
 let materiaState = []
 let clientesState = []
 let proveedoresState = []
+let ticketItems = []
 
 const resourceConfig = {
   producto: {
@@ -93,6 +100,22 @@ const money = (value) => {
   return `$${Number(value || 0).toFixed(2)}`
 }
 
+const setSystemStatus = (status, message) => {
+  systemStatus.classList.remove('online', 'offline', 'checking')
+  systemStatus.classList.add(status)
+  statusText.innerText = message
+}
+
+const checkSystemStatus = async () => {
+  try {
+    setSystemStatus('checking', 'Verificando sistema')
+    await apiRequest('/api/health')
+    setSystemStatus('online', 'Sistema activo')
+  } catch (error) {
+    setSystemStatus('offline', 'Sin conexion a API o base')
+  }
+}
+
 const fileToDataUrl = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -151,8 +174,82 @@ const closeCurrentModal = () => {
   modalBody.innerHTML = ''
 }
 
+const renderTicket = () => {
+  if (!ticketItems.length) {
+    cartItemsContainer.innerHTML = `
+      <div class="empty-state">
+        <h3>Sin productos</h3>
+        <p>Agrega productos al ticket</p>
+      </div>
+    `
+  } else {
+    cartItemsContainer.innerHTML = ticketItems.map(item => `
+      <article class="cart-item" data-ticket-id="${escapeHtml(item.id)}">
+        <div class="cart-item-info">
+          <h4>${escapeHtml(item.nombre)}</h4>
+          <p>${money(item.precio)} c/u</p>
+        </div>
+
+        <div class="quantity-control">
+          <button type="button" data-ticket-action="decrease" data-id="${escapeHtml(item.id)}">-</button>
+          <input type="number" min="1" step="1" value="${escapeHtml(item.cantidad)}" data-ticket-action="quantity" data-id="${escapeHtml(item.id)}">
+          <button type="button" data-ticket-action="increase" data-id="${escapeHtml(item.id)}">+</button>
+        </div>
+
+        <strong>${money(item.precio * item.cantidad)}</strong>
+        <button class="remove-ticket-item" type="button" data-ticket-action="remove" data-id="${escapeHtml(item.id)}">&times;</button>
+      </article>
+    `).join('')
+  }
+
+  const subtotal = ticketItems.reduce((total, item) => {
+    return total + item.precio * item.cantidad
+  }, 0)
+
+  cartSubtotal.innerText = money(subtotal)
+  cartTotal.innerText = money(subtotal)
+}
+
+const addProductToTicket = (producto) => {
+  const existingItem = ticketItems.find(item => item.id === producto.id)
+
+  if (existingItem) {
+    existingItem.cantidad += 1
+  } else {
+    ticketItems.push({
+      id: producto.id,
+      nombre: producto.nombre,
+      precio: Number(producto.precio || 0),
+      cantidad: 1
+    })
+  }
+
+  renderTicket()
+}
+
+const syncTicketProducts = () => {
+  ticketItems = ticketItems
+    .map(item => {
+      const producto = productosState.find(product => product.id === item.id)
+
+      if (!producto) {
+        return null
+      }
+
+      return {
+        ...item,
+        nombre: producto.nombre,
+        precio: Number(producto.precio || 0)
+      }
+    })
+    .filter(Boolean)
+
+  renderTicket()
+}
+
 const renderProductos = (productos) => {
   productosState = productos
+  syncTicketProducts()
 
   if (!productos.length) {
     productsContainer.innerHTML = `
@@ -166,7 +263,7 @@ const renderProductos = (productos) => {
   }
 
   productsContainer.innerHTML = productos.map(producto => `
-    <article class="product-card">
+    <article class="product-card" data-product-id="${escapeHtml(producto.id)}">
       <div class="product-image">
         ${producto.imagen
           ? `<img src="${escapeHtml(producto.imagen)}" alt="${escapeHtml(producto.nombre)}">`
@@ -236,6 +333,8 @@ const renderProveedores = (proveedores) => {
 
 const loadData = async () => {
   try {
+    await checkSystemStatus()
+
     const [productos, materiaPrima, clientes, proveedores] = await Promise.all([
       apiRequest('/api/productos'),
       apiRequest('/api/materia-prima'),
@@ -248,6 +347,8 @@ const loadData = async () => {
     renderClientes(clientes)
     renderProveedores(proveedores)
   } catch (error) {
+    setSystemStatus('offline', 'Sin conexion a API o base')
+
     productsContainer.innerHTML = `
       <div class="empty-state">
         <h3>No se pudo conectar con la API</h3>
@@ -500,6 +601,86 @@ productsContainer.addEventListener('click', handleActionClick)
 materiaContainer.addEventListener('click', handleActionClick)
 clientesContainer.addEventListener('click', handleActionClick)
 proveedoresContainer.addEventListener('click', handleActionClick)
+
+productsContainer.addEventListener('click', (event) => {
+  if (event.target.closest('[data-action]')) {
+    return
+  }
+
+  const productCard = event.target.closest('[data-product-id]')
+
+  if (!productCard) {
+    return
+  }
+
+  const producto = productosState.find(item => String(item.id) === productCard.dataset.productId)
+
+  if (producto) {
+    addProductToTicket(producto)
+  }
+})
+
+cartItemsContainer.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-ticket-action]')
+
+  if (!button || button.dataset.ticketAction === 'quantity') {
+    return
+  }
+
+  const item = ticketItems.find(ticketItem => String(ticketItem.id) === button.dataset.id)
+
+  if (!item) {
+    return
+  }
+
+  if (button.dataset.ticketAction === 'increase') {
+    item.cantidad += 1
+  }
+
+  if (button.dataset.ticketAction === 'decrease') {
+    item.cantidad -= 1
+  }
+
+  if (button.dataset.ticketAction === 'remove' || item.cantidad <= 0) {
+    ticketItems = ticketItems.filter(ticketItem => ticketItem.id !== item.id)
+  }
+
+  renderTicket()
+})
+
+cartItemsContainer.addEventListener('input', (event) => {
+  if (event.target.dataset.ticketAction !== 'quantity') {
+    return
+  }
+
+  const item = ticketItems.find(ticketItem => String(ticketItem.id) === event.target.dataset.id)
+
+  if (!item) {
+    return
+  }
+
+  item.cantidad = Math.max(1, Math.floor(Number(event.target.value) || 1))
+  renderTicket()
+})
+
+payButtons.forEach(button => {
+  button.addEventListener('click', () => {
+    if (!ticketItems.length) {
+      window.alert('Agrega productos al ticket antes de cobrar.')
+      return
+    }
+
+    const total = ticketItems.reduce((sum, item) => sum + item.precio * item.cantidad, 0)
+    const shouldClearTicket = window.confirm(`Cobrar ${money(total)} y limpiar el ticket?`)
+
+    if (!shouldClearTicket) {
+      return
+    }
+
+    ticketItems = []
+    renderTicket()
+  })
+})
 
 modalBody.addEventListener('change', async (event) => {
   if (event.target.id !== 'producto-imagen-file') {

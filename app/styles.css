@@ -150,6 +150,24 @@ body {
   color: #374151;
 }
 
+.sidebar-footer.online .status-dot {
+  background: #22c55e;
+}
+
+.sidebar-footer.checking .status-dot {
+  background: #f59e0b;
+}
+
+.sidebar-footer.offline {
+  background: #fee2e2;
+
+  color: #991b1b;
+}
+
+.sidebar-footer.offline .status-dot {
+  background: #ef4444;
+}
+
 .status-dot {
   width: 10px;
   height: 10px;
@@ -258,6 +276,8 @@ body {
 
   text-align: center;
 
+  cursor: pointer;
+
   transition: 0.2s;
 
   box-shadow:
@@ -328,6 +348,10 @@ body {
 
 .product-card .row-actions {
   margin-top: 16px;
+}
+
+.product-card .action-btn {
+  cursor: pointer;
 }
 
 .action-btn {
@@ -501,6 +525,8 @@ td {
 
 .cart-items {
   flex: 1;
+
+  overflow-y: auto;
 }
 
 .cart-item {
@@ -508,13 +534,20 @@ td {
 
   border-radius: 22px;
 
-  padding: 18px;
+  padding: 16px;
 
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
 
+  gap: 12px;
+
   margin-bottom: 15px;
+}
+
+.cart-item-info {
+  min-width: 0;
+  flex: 1 1 140px;
 }
 
 .cart-item h4 {
@@ -529,9 +562,61 @@ td {
   color: #6b7280;
 }
 
-.cart-item span {
+.cart-item strong {
   font-size: 20px;
   font-weight: 700;
+
+  color: #111827;
+}
+
+.quantity-control {
+  display: flex;
+  align-items: center;
+
+  background: white;
+
+  border-radius: 14px;
+
+  overflow: hidden;
+}
+
+.quantity-control button,
+.remove-ticket-item {
+  border: none;
+
+  background: #111827;
+
+  color: white;
+
+  width: 34px;
+  height: 34px;
+
+  font-size: 18px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.quantity-control input {
+  width: 46px;
+  height: 34px;
+
+  border: none;
+
+  text-align: center;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  outline: none;
+}
+
+.remove-ticket-item {
+  background: #fee2e2;
+
+  color: #b91c1c;
+
+  border-radius: 12px;
 }
 
 /* TOTAL */

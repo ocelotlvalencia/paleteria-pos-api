@@ -40,6 +40,8 @@ En Neon crea una base PostgreSQL y copia estas URLs:
 - `DIRECT_URL`: URL directa para migraciones.
 
 En Vercel configura esas mismas variables dentro del proyecto de la API.
+Si Neon ya creo `DATABASE_URL` y `DATABASE_URL_UNPOOLED`, no necesitas crear
+`DIRECT_URL` manualmente.
 Despues ejecuta las migraciones:
 
 ```bash

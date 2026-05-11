@@ -1,7 +1,7 @@
 {
-  "name": "paleteria-pos-app",
+  "name": "punto-de-venta-v001",
   "version": "1.0.0",
-  "description": "Paleteria Nopalucan POS",
+  "description": "Punto de Venta V.001",
   "main": "main.js",
   "scripts": {
     "dev": "electron .",
@@ -9,7 +9,7 @@
   },
   "build": {
     "appId": "com.paleterianopalucan.pos",
-    "productName": "Paleteria Nopalucan POS",
+    "productName": "Punto de Venta V.001",
     "directories": {
       "output": "dist"
     },

@@ -4,6 +4,7 @@ const path = require('path')
 
 let mainWindow
 const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
+const DEFAULT_THEME = 'light'
 
 const getInstallConfigPath = () => {
   if (!app.isPackaged) {
@@ -25,14 +26,14 @@ const ensureConfigFile = () => {
 
   if (!fs.existsSync(configPath)) {
     try {
-      fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\n`, 'utf8')
+      fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\n`, 'utf8')
     } catch (error) {
       if (!fs.existsSync(fallbackDirectory)) {
         fs.mkdirSync(fallbackDirectory, { recursive: true })
       }
 
       if (!fs.existsSync(fallbackPath)) {
-        fs.writeFileSync(fallbackPath, `API_URL=${DEFAULT_API_URL}\n`, 'utf8')
+        fs.writeFileSync(fallbackPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\n`, 'utf8')
       }
 
       return fallbackPath
@@ -42,24 +43,69 @@ const ensureConfigFile = () => {
   return configPath
 }
 
-const readApiUrlFromConfig = () => {
+const readConfig = () => {
   const configPath = ensureConfigFile()
   const config = fs.readFileSync(configPath, 'utf8')
-  const apiLine = config
-    .split(/\r?\n/)
-    .find(line => line.trim().startsWith('API_URL='))
-  const configuredUrl = apiLine?.split('=').slice(1).join('=').trim().replace(/\/$/, '')
+
+  return Object.fromEntries(
+    config
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#') && line.includes('='))
+      .map(line => {
+        const [key, ...valueParts] = line.split('=')
+
+        return [key.trim(), valueParts.join('=').trim()]
+      })
+  )
+}
+
+const saveConfig = (nextConfig) => {
+  const configPath = ensureConfigFile()
+  const config = {
+    API_URL: DEFAULT_API_URL,
+    THEME: DEFAULT_THEME,
+    ...readConfig(),
+    ...nextConfig
+  }
+
+  fs.writeFileSync(
+    configPath,
+    `API_URL=${config.API_URL}\nTHEME=${config.THEME}\n`,
+    'utf8'
+  )
+}
+
+const readApiUrlFromConfig = () => {
+  const configuredUrl = readConfig().API_URL?.replace(/\/$/, '')
 
   return configuredUrl || DEFAULT_API_URL
 }
 
 const saveApiUrlToConfig = (apiUrl) => {
-  const configPath = ensureConfigFile()
   const normalizedUrl = String(apiUrl || DEFAULT_API_URL).trim().replace(/\/$/, '')
 
-  fs.writeFileSync(configPath, `API_URL=${normalizedUrl || DEFAULT_API_URL}\n`, 'utf8')
+  saveConfig({
+    API_URL: normalizedUrl || DEFAULT_API_URL
+  })
 
   return normalizedUrl || DEFAULT_API_URL
+}
+
+const readThemeFromConfig = () => {
+  const theme = readConfig().THEME
+
+  return theme === 'dark' ? 'dark' : DEFAULT_THEME
+}
+
+const saveThemeToConfig = (theme) => {
+  const normalizedTheme = theme === 'dark' ? 'dark' : DEFAULT_THEME
+
+  saveConfig({
+    THEME: normalizedTheme
+  })
+
+  return normalizedTheme
 }
 
 const createWindow = () => {
@@ -92,6 +138,8 @@ app.whenReady().then(() => {
   ipcMain.handle('config:get-api-url', () => readApiUrlFromConfig())
   ipcMain.handle('config:get-path', () => ensureConfigFile())
   ipcMain.handle('config:set-api-url', (event, apiUrl) => saveApiUrlToConfig(apiUrl))
+  ipcMain.handle('config:get-theme', () => readThemeFromConfig())
+  ipcMain.handle('config:set-theme', (event, theme) => saveThemeToConfig(theme))
 
   createWindow()
 

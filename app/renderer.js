@@ -40,9 +40,15 @@ let ticketItems = []
 let apiUrlState = DEFAULT_API_URL
 let configPathState = ''
 
-const applyTheme = (theme) => {
-  document.body.classList.toggle('dark-mode', theme === 'dark')
-  localStorage.setItem('theme', theme)
+const applyTheme = async (theme, options = {}) => {
+  const normalizedTheme = theme === 'dark' ? 'dark' : 'light'
+
+  document.body.classList.toggle('dark-mode', normalizedTheme === 'dark')
+  localStorage.setItem('theme', normalizedTheme)
+
+  if (options.persist !== false && window.appConfig?.setTheme) {
+    await window.appConfig.setTheme(normalizedTheme)
+  }
 }
 
 const resourceConfig = {
@@ -128,6 +134,75 @@ const escapeHtml = (value) => {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;')
+}
+
+const closeCustomSelects = (except = null) => {
+  document.querySelectorAll('.custom-select.open').forEach(select => {
+    if (select !== except) {
+      select.classList.remove('open')
+    }
+  })
+}
+
+const enhanceCustomSelects = (root = document) => {
+  root.querySelectorAll('select:not([data-enhanced-select])').forEach(select => {
+    const wrapper = document.createElement('div')
+    const button = document.createElement('button')
+    const value = document.createElement('span')
+    const menu = document.createElement('div')
+
+    select.dataset.enhancedSelect = 'true'
+    select.classList.add('native-select-hidden')
+
+    wrapper.className = 'custom-select'
+    button.className = 'custom-select-button'
+    button.type = 'button'
+    value.className = 'custom-select-value'
+    menu.className = 'custom-select-menu'
+
+    button.append(value)
+    button.insertAdjacentHTML('beforeend', '<span class="custom-select-arrow"></span>')
+
+    const syncValue = () => {
+      value.textContent = select.selectedOptions[0]?.textContent.trim() || 'Seleccionar'
+
+      menu.querySelectorAll('.custom-select-option').forEach(optionButton => {
+        optionButton.classList.toggle('selected', optionButton.dataset.value === select.value)
+      })
+    }
+
+    Array.from(select.options).forEach(option => {
+      const optionButton = document.createElement('button')
+
+      optionButton.className = 'custom-select-option'
+      optionButton.type = 'button'
+      optionButton.dataset.value = option.value
+      optionButton.textContent = option.textContent.trim()
+
+      optionButton.addEventListener('click', () => {
+        select.value = option.value
+        syncValue()
+        wrapper.classList.remove('open')
+        select.dispatchEvent(new Event('change', { bubbles: true }))
+      })
+
+      menu.append(optionButton)
+    })
+
+    button.addEventListener('click', (event) => {
+      event.stopPropagation()
+      const shouldOpen = !wrapper.classList.contains('open')
+
+      closeCustomSelects(wrapper)
+      wrapper.classList.toggle('open', shouldOpen)
+    })
+
+    select.addEventListener('change', syncValue)
+
+    wrapper.append(button, menu)
+    select.after(wrapper)
+    syncValue()
+  })
 }
 
 const money = (value) => {
@@ -1046,6 +1121,8 @@ const openModal = (type, record = null) => {
   if (type === 'proveedor') {
     renderProveedorModal(record)
   }
+
+  enhanceCustomSelects(modalBody)
 }
 
 buttons.forEach(button => {
@@ -1082,8 +1159,8 @@ document.querySelectorAll('.add-btn').forEach(button => {
   })
 })
 
-themeToggle.addEventListener('click', () => {
-  applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark')
+themeToggle.addEventListener('click', async () => {
+  await applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark')
 })
 
 const handleActionClick = async (event) => {
@@ -1359,10 +1436,20 @@ window.addEventListener('click', (event) => {
   if (event.target === modal) {
     closeCurrentModal()
   }
+
+  if (!event.target.closest('.custom-select')) {
+    closeCustomSelects()
+  }
 })
 
 const boot = async () => {
-  applyTheme(localStorage.getItem('theme') || 'light')
+  await applyTheme(localStorage.getItem('theme') || 'light', { persist: false })
+
+  if (window.appConfig?.getTheme) {
+    await applyTheme(await window.appConfig.getTheme(), { persist: false })
+  }
+
+  enhanceCustomSelects()
   await initConfig()
   renderApiSettings()
   loadData()

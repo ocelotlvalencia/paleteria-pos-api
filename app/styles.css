@@ -1111,6 +1111,208 @@ td small {
   resize: vertical;
 }
 
+.form-group select,
+.payment-method select {
+  appearance: none;
+
+  border: 1px solid rgba(17,24,39,0.08);
+
+  background-color: rgba(0,0,0,0.05);
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6b7280 50%),
+    linear-gradient(135deg, #6b7280 50%, transparent 50%);
+  background-position:
+    calc(100% - 24px) 50%,
+    calc(100% - 17px) 50%;
+  background-size:
+    7px 7px,
+    7px 7px;
+  background-repeat: no-repeat;
+
+  color: #111827;
+
+  cursor: pointer;
+
+  padding-right: 48px;
+
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.form-group select:focus,
+.payment-method select:focus {
+  border-color: rgba(37,99,235,0.55);
+
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.14);
+}
+
+.form-group select option,
+.payment-method select option {
+  background: white;
+
+  color: #111827;
+}
+
+.native-select-hidden {
+  position: absolute;
+
+  width: 1px !important;
+  height: 1px !important;
+
+  border: 0 !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  opacity: 0;
+
+  pointer-events: none;
+}
+
+.custom-select {
+  position: relative;
+
+  width: 100%;
+}
+
+.custom-select.open {
+  z-index: 30;
+}
+
+.custom-select-button {
+  width: 100%;
+
+  border: 1px solid rgba(17,24,39,0.08);
+
+  background: rgba(0,0,0,0.05);
+
+  border-radius: 18px;
+
+  padding: 16px 48px 16px 16px;
+
+  color: #111827;
+
+  font-size: 16px;
+  font-weight: 700;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.form-group .custom-select-button {
+  padding: 18px 48px 18px 18px;
+
+  font-weight: 500;
+}
+
+.custom-select-button:focus {
+  outline: none;
+
+  border-color: rgba(37,99,235,0.55);
+
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.14);
+}
+
+.custom-select-value {
+  min-width: 0;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select-arrow {
+  position: absolute;
+  right: 20px;
+
+  width: 10px;
+  height: 10px;
+
+  border-right: 2px solid #6b7280;
+  border-bottom: 2px solid #6b7280;
+
+  transform: translateY(-2px) rotate(45deg);
+
+  transition: transform 0.2s;
+}
+
+.custom-select.open .custom-select-arrow {
+  transform: translateY(3px) rotate(225deg);
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+
+  max-height: 220px;
+
+  background: white;
+
+  border: 1px solid rgba(17,24,39,0.08);
+  border-radius: 18px;
+
+  padding: 6px;
+
+  box-shadow:
+    0 18px 40px rgba(0,0,0,0.16);
+
+  display: none;
+
+  overflow-y: auto;
+}
+
+.custom-select.open .custom-select-menu {
+  display: block;
+}
+
+.custom-select-option {
+  width: 100%;
+
+  border: none;
+
+  background: transparent;
+
+  border-radius: 12px;
+
+  padding: 12px 14px;
+
+  color: #374151;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.custom-select-option:hover {
+  background: #eef2ff;
+
+  color: #1d4ed8;
+}
+
+.custom-select-option.selected {
+  background: #111827;
+
+  color: white;
+}
+
 .form-summary {
   background: #f0fdf4;
 
@@ -1256,6 +1458,7 @@ body.dark-mode .cart-item strong,
 body.dark-mode .total-row.final,
 body.dark-mode .modal-header h2,
 body.dark-mode .app-dialog-content h2,
+body.dark-mode .empty-state h3,
 body.dark-mode .setting-card h3 {
   color: #f9fafb;
 }
@@ -1291,6 +1494,7 @@ body.dark-mode .api-settings-form input {
 }
 
 body.dark-mode .category.active,
+body.dark-mode .add-btn,
 body.dark-mode .save-btn,
 body.dark-mode .cash,
 body.dark-mode .header-icon-btn,
@@ -1316,6 +1520,72 @@ body.dark-mode .form-group select,
 body.dark-mode .form-group textarea,
 body.dark-mode .payment-method select {
   color: #f9fafb;
+}
+
+body.dark-mode .form-group select,
+body.dark-mode .payment-method select {
+  border-color: rgba(148,163,184,0.2);
+
+  background-image:
+    linear-gradient(45deg, transparent 50%, #cbd5e1 50%),
+    linear-gradient(135deg, #cbd5e1 50%, transparent 50%);
+}
+
+body.dark-mode .form-group select:focus,
+body.dark-mode .payment-method select:focus {
+  border-color: rgba(96,165,250,0.7);
+
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.22);
+}
+
+body.dark-mode .form-group select option,
+body.dark-mode .payment-method select option {
+  background: #171c26;
+
+  color: #f9fafb;
+}
+
+body.dark-mode .custom-select-button {
+  border-color: rgba(148,163,184,0.2);
+
+  background: rgba(255,255,255,0.08);
+
+  color: #f9fafb;
+}
+
+body.dark-mode .custom-select-button:focus {
+  border-color: rgba(96,165,250,0.7);
+
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.22);
+}
+
+body.dark-mode .custom-select-arrow {
+  border-color: #cbd5e1;
+}
+
+body.dark-mode .custom-select-menu {
+  background: #171c26;
+
+  border-color: rgba(148,163,184,0.2);
+
+  box-shadow:
+    0 18px 40px rgba(0,0,0,0.36);
+}
+
+body.dark-mode .custom-select-option {
+  color: #d1d5db;
+}
+
+body.dark-mode .custom-select-option:hover {
+  background: rgba(37,99,235,0.18);
+
+  color: #f9fafb;
+}
+
+body.dark-mode .custom-select-option.selected {
+  background: #2563eb;
+
+  color: white;
 }
 
 body.dark-mode thead {

@@ -54,7 +54,26 @@ const buildPedidoItems = (pedido, concepto, total) => {
   }]
 }
 
+const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [], total, concepto }) => {
+  return [
+    'PALETERIA NOPALUCAN',
+    title,
+    id ? `Folio #${id}` : 'Folio pendiente',
+    concepto ? `Concepto: ${concepto}` : '',
+    `Metodo: ${metodoPago || 'Efectivo'}`,
+    '',
+    'Detalle:',
+    ...items.map(item => `${item.cantidad} x ${item.nombre} $${Number(item.total || 0).toFixed(2)}`),
+    '',
+    `Total: $${Number(total || 0).toFixed(2)}`,
+    '',
+    'Gracias.'
+  ].filter(Boolean).join('\n')
+}
+
 const createPedidoVenta = async ({ pedido, tipo, concepto, total, metodoPago }) => {
+  const items = buildPedidoItems(pedido, concepto, total)
+
   return prisma.venta.create({
     data: {
       total,
@@ -62,7 +81,14 @@ const createPedidoVenta = async ({ pedido, tipo, concepto, total, metodoPago }) 
       tipo,
       concepto,
       pedidoId: pedido.id,
-      items: buildPedidoItems(pedido, concepto, total)
+      items,
+      ticket: buildTicketText({
+        title: tipo,
+        metodoPago,
+        items,
+        total,
+        concepto
+      })
     }
   })
 }
@@ -288,6 +314,7 @@ app.get('/api/ventas', asyncHandler(async (req, res) => {
 }))
 
 app.post('/api/ventas', asyncHandler(async (req, res) => {
+  const items = Array.isArray(req.body.items) ? req.body.items : []
   const venta = await prisma.venta.create({
     data: {
       total: toNumber(req.body.total),
@@ -295,7 +322,14 @@ app.post('/api/ventas', asyncHandler(async (req, res) => {
       tipo: req.body.tipo || 'Venta',
       concepto: req.body.concepto || null,
       pedidoId: toOptionalNumber(req.body.pedidoId),
-      items: Array.isArray(req.body.items) ? req.body.items : []
+      items,
+      ticket: req.body.ticket || buildTicketText({
+        title: req.body.tipo || 'Venta',
+        metodoPago: req.body.metodoPago || 'Efectivo',
+        items,
+        total: toNumber(req.body.total),
+        concepto: req.body.concepto
+      })
     }
   })
 
@@ -327,7 +361,7 @@ app.post('/api/pedidos', asyncHandler(async (req, res) => {
       telefono: req.body.telefono || null,
       detalle: req.body.detalle,
       fechaEntrega: toDate(req.body.fechaEntrega),
-      estado: req.body.estado || 'Pendiente',
+      estado: req.body.estado || 'En preparación',
       total: toNumber(req.body.total),
       anticipo: toNumber(req.body.anticipo),
       metodoAnticipo: req.body.metodoAnticipo || null
@@ -384,7 +418,7 @@ app.put('/api/pedidos/:id', asyncHandler(async (req, res) => {
       telefono: req.body.telefono || null,
       detalle: req.body.detalle,
       fechaEntrega: toDate(req.body.fechaEntrega),
-      estado: req.body.estado || 'Pendiente',
+      estado: req.body.estado || 'En preparación',
       total: toNumber(req.body.total),
       anticipo: toNumber(req.body.anticipo),
       metodoAnticipo: req.body.metodoAnticipo || null
@@ -405,6 +439,41 @@ app.put('/api/pedidos/:id', asyncHandler(async (req, res) => {
       data: { anticipoVentaId: venta.id }
     })
   }
+
+  if (pedido.estado === 'Entregado' && previousPedido?.estado !== 'Entregado' && !previousPedido?.entregaVentaId) {
+    const saldo = Math.max(Number(pedido.total || 0) - Number(pedido.anticipo || 0), 0)
+    const venta = await createPedidoVenta({
+      pedido,
+      tipo: 'Pedido entregado',
+      concepto: `Entrega pedido #${pedido.id}`,
+      total: saldo,
+      metodoPago: req.body.metodoEntrega || 'Efectivo'
+    })
+
+    pedido = await prisma.pedido.update({
+      where: { id: pedido.id },
+      data: { entregaVentaId: venta.id }
+    })
+  }
+
+  res.json(pedido)
+}))
+
+app.patch('/api/pedidos/:id/estado', asyncHandler(async (req, res) => {
+  const previousPedido = await prisma.pedido.findUnique({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  let pedido = await prisma.pedido.update({
+    where: {
+      id: toNumber(req.params.id)
+    },
+    data: {
+      estado: req.body.estado || 'En preparación'
+    }
+  })
 
   if (pedido.estado === 'Entregado' && previousPedido?.estado !== 'Entregado' && !previousPedido?.entregaVentaId) {
     const saldo = Math.max(Number(pedido.total || 0) - Number(pedido.anticipo || 0), 0)

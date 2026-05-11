@@ -96,6 +96,8 @@ model Venta {
 
   pedidoId      Int?
 
+  ticket        String?
+
   items         Json?
 
   createdAt     DateTime @default(now())
@@ -115,7 +117,7 @@ model Pedido {
 
   fechaEntrega  DateTime
 
-  estado        String   @default("Pendiente")
+  estado        String   @default("En preparación")
 
   total         Float    @default(0)
 

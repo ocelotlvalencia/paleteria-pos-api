@@ -1,0 +1,2 @@
+ALTER TABLE "Venta"
+ADD COLUMN "ticket" TEXT;

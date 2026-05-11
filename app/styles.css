@@ -623,6 +623,8 @@ td small {
   display: inline-flex;
   align-items: center;
 
+  border: none;
+
   background: #eef2ff;
 
   color: #1d4ed8;
@@ -633,6 +635,8 @@ td small {
 
   font-size: 13px;
   font-weight: 800;
+
+  cursor: pointer;
 }
 
 .cart-item p {
@@ -1179,4 +1183,145 @@ td small {
   cursor: pointer;
 
   margin-top: 10px;
+}
+
+.locked-section {
+  opacity: 0.58;
+}
+
+.locked-setting {
+  position: relative;
+}
+
+.locked-setting small {
+  display: block;
+
+  margin-top: 12px;
+
+  color: #6b7280;
+
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.theme-toggle {
+  margin-top: 4px;
+}
+
+body.dark-mode {
+  background: #10131a;
+
+  color: #e5e7eb;
+}
+
+body.dark-mode .sidebar,
+body.dark-mode .main,
+body.dark-mode .cart {
+  background: rgba(22,27,38,0.88);
+
+  border: 1px solid rgba(148,163,184,0.18);
+
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.28);
+}
+
+body.dark-mode .sidebar-header h2,
+body.dark-mode .topbar h1,
+body.dark-mode .cart-header h2,
+body.dark-mode .product-card h3,
+body.dark-mode td,
+body.dark-mode .cart-item h4,
+body.dark-mode .cart-item strong,
+body.dark-mode .total-row.final,
+body.dark-mode .modal-header h2,
+body.dark-mode .app-dialog-content h2,
+body.dark-mode .setting-card h3 {
+  color: #f9fafb;
+}
+
+body.dark-mode .sidebar-header p,
+body.dark-mode .topbar span,
+body.dark-mode .cart-header span,
+body.dark-mode .product-card > span,
+body.dark-mode .cart-item p,
+body.dark-mode .empty-state p,
+body.dark-mode .setting-card p,
+body.dark-mode .locked-setting small,
+body.dark-mode td small,
+body.dark-mode .total-row {
+  color: #a7b0c0;
+}
+
+body.dark-mode .category {
+  color: #d1d5db;
+}
+
+body.dark-mode .category:hover,
+body.dark-mode .sidebar-footer,
+body.dark-mode .cart-item,
+body.dark-mode .product-image,
+body.dark-mode .image-preview,
+body.dark-mode .form-group input,
+body.dark-mode .form-group select,
+body.dark-mode .form-group textarea,
+body.dark-mode .payment-method select,
+body.dark-mode .api-settings-form input {
+  background: rgba(255,255,255,0.08);
+}
+
+body.dark-mode .category.active,
+body.dark-mode .save-btn,
+body.dark-mode .cash,
+body.dark-mode .image-upload,
+body.dark-mode .quantity-control button {
+  background: #2563eb;
+
+  color: white;
+}
+
+body.dark-mode .table-container,
+body.dark-mode .product-card,
+body.dark-mode .setting-card,
+body.dark-mode .empty-state,
+body.dark-mode .modal-content,
+body.dark-mode .app-dialog-content,
+body.dark-mode .quantity-control {
+  background: #171c26;
+}
+
+body.dark-mode thead {
+  background: rgba(255,255,255,0.07);
+}
+
+body.dark-mode th {
+  color: #9ca3af;
+}
+
+body.dark-mode td {
+  border-bottom-color: rgba(255,255,255,0.08);
+}
+
+body.dark-mode .card,
+body.dark-mode .dialog-btn.secondary {
+  background: #2b3445;
+
+  color: #f9fafb;
+}
+
+body.dark-mode .stock-alert {
+  background: rgba(251,146,60,0.14);
+
+  border-color: rgba(251,146,60,0.28);
+
+  color: #fdba74;
+}
+
+body.dark-mode .low-stock-row {
+  background: rgba(251,146,60,0.08);
+}
+
+body.dark-mode .ticket-dialog pre {
+  background: #10131a;
+
+  color: #f9fafb;
 }

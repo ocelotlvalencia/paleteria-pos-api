@@ -22,6 +22,13 @@ const cartTotal = document.getElementById('cart-total')
 const ticketPaymentMethod = document.getElementById('ticket-payment-method')
 const chargeTicket = document.getElementById('charge-ticket')
 const cancelTicket = document.getElementById('cancel-ticket')
+const themeToggle = document.getElementById('theme-toggle')
+
+const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
+const LEGACY_LOCAL_API_URLS = new Set([
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+])
 
 let productosState = []
 let materiaState = []
@@ -30,6 +37,13 @@ let pedidosState = []
 let ventasState = []
 let proveedoresState = []
 let ticketItems = []
+let apiUrlState = DEFAULT_API_URL
+let configPathState = ''
+
+const applyTheme = (theme) => {
+  document.body.classList.toggle('dark-mode', theme === 'dark')
+  localStorage.setItem('theme', theme)
+}
 
 const resourceConfig = {
   producto: {
@@ -69,21 +83,23 @@ const resourceConfig = {
   }
 }
 
-const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
-const LEGACY_LOCAL_API_URLS = new Set([
-  'http://localhost:3000',
-  'http://127.0.0.1:3000'
-])
-
-const getApiUrl = () => {
-  const storedUrl = (localStorage.getItem('apiUrl') || '').replace(/\/$/, '')
-
-  if (!storedUrl || LEGACY_LOCAL_API_URLS.has(storedUrl)) {
-    localStorage.setItem('apiUrl', DEFAULT_API_URL)
-    return DEFAULT_API_URL
+const initConfig = async () => {
+  if (!window.appConfig) {
+    apiUrlState = DEFAULT_API_URL
+    return
   }
 
-  return storedUrl
+  const [apiUrl, configPath] = await Promise.all([
+    window.appConfig.getApiUrl(),
+    window.appConfig.getConfigPath()
+  ])
+
+  apiUrlState = LEGACY_LOCAL_API_URLS.has(apiUrl) ? DEFAULT_API_URL : apiUrl
+  configPathState = configPath
+}
+
+const getApiUrl = () => {
+  return apiUrlState
 }
 
 const apiRequest = async (path, options = {}) => {
@@ -301,6 +317,58 @@ const showTicketDialog = (title, content) => {
   })
 }
 
+const showPedidoStatusDialog = (pedido) => {
+  return new Promise((resolve) => {
+    const dialog = document.createElement('div')
+    dialog.className = 'app-dialog show-modal'
+    dialog.innerHTML = `
+      <div class="app-dialog-content">
+        <h2>Estado del pedido</h2>
+        <p>${escapeHtml(pedido.cliente)} &middot; Pedido #${escapeHtml(pedido.id)}</p>
+        <form class="status-form">
+          <div class="form-group">
+            <label>Estado</label>
+            <select name="estado" required>
+              <option ${pedido.estado === 'En preparación' ? 'selected' : ''}>En preparación</option>
+              <option ${pedido.estado === 'Entregado' ? 'selected' : ''}>Entregado</option>
+              <option ${pedido.estado === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>M&eacute;todo al entregar</label>
+            <select name="metodoEntrega">
+              <option>Efectivo</option>
+              <option>Tarjeta</option>
+            </select>
+          </div>
+          <div class="app-dialog-actions">
+            <button class="dialog-btn secondary" type="button" data-dialog-action="cancel">Cancelar</button>
+            <button class="dialog-btn primary" type="submit">Guardar</button>
+          </div>
+        </form>
+      </div>
+    `
+
+    const closeDialog = (result) => {
+      dialog.remove()
+      resolve(result)
+    }
+
+    dialog.addEventListener('click', (event) => {
+      if (event.target.closest('[data-dialog-action="cancel"]') || event.target === dialog) {
+        closeDialog(null)
+      }
+    })
+
+    dialog.querySelector('form').addEventListener('submit', (event) => {
+      event.preventDefault()
+      closeDialog(Object.fromEntries(new FormData(event.currentTarget).entries()))
+    })
+
+    document.body.appendChild(dialog)
+  })
+}
+
 const setSystemStatus = (status, message) => {
   systemStatus.classList.remove('online', 'offline', 'checking')
   systemStatus.classList.add(status)
@@ -363,6 +431,14 @@ const renderActionButtons = (resource, id) => {
       ${resource === 'pedido'
         ? `<button class="action-btn ticket" type="button" data-action="ticket" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Ticket de pedido" aria-label="Ticket de pedido">
             &#129534;
+          </button>
+          <button class="action-btn status" type="button" data-action="status" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Cambiar estado" aria-label="Cambiar estado">
+            &#8635;
+          </button>`
+        : ''}
+      ${resource === 'venta'
+        ? `<button class="action-btn ticket" type="button" data-action="ticket" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Reimprimir ticket" aria-label="Reimprimir ticket">
+            &#128438;
           </button>`
         : ''}
       ${resource !== 'venta'
@@ -426,12 +502,13 @@ const buildPedidoTicket = (pedido) => {
   ].join('\n')
 }
 
-const buildVentaTicket = ({ id, metodoPago, items, total }) => {
+const buildVentaTicket = ({ id, metodoPago, items, total, tipo = 'TICKET DE COMPRA', concepto = '', createdAt = new Date().toISOString() }) => {
   return [
     'PALETERIA NOPALUCAN',
-    'TICKET DE COMPRA',
+    tipo,
     id ? `Venta #${id}` : 'Venta',
-    `Fecha: ${formatDateTime(new Date().toISOString())}`,
+    concepto ? `Concepto: ${concepto}` : '',
+    `Fecha: ${formatDateTime(createdAt)}`,
     `Metodo: ${metodoPago}`,
     '',
     'Productos:',
@@ -440,7 +517,7 @@ const buildVentaTicket = ({ id, metodoPago, items, total }) => {
     `Total: ${money(total)}`,
     '',
     'Gracias por su compra.'
-  ].join('\n')
+  ].filter(Boolean).join('\n')
 }
 
 const renderTicket = () => {
@@ -594,7 +671,11 @@ const renderPedidos = (pedidos) => {
         ${money(pedido.total)}
         <small>Anticipo ${money(pedido.anticipo)}</small>
       </td>
-      <td><span class="status-pill">${escapeHtml(pedido.estado)}</span></td>
+      <td>
+        <button class="status-pill" type="button" data-action="status" data-resource="pedido" data-id="${escapeHtml(pedido.id)}">
+          ${escapeHtml(pedido.estado)}
+        </button>
+      </td>
       <td>${renderActionButtons('pedido', pedido.id)}</td>
     </tr>
   `).join('')
@@ -681,32 +762,12 @@ const loadData = async () => {
 
 const renderApiSettings = () => {
   settingsGrid.insertAdjacentHTML('beforeend', `
-    <div class="setting-card">
+    <div class="setting-card locked-setting">
       <h3><span class="card-icon">&#128279;</span> API</h3>
-      <p>URL actual</p>
-      <form id="api-settings-form" class="api-settings-form">
-        <input
-          type="url"
-          name="apiUrl"
-          value="${escapeHtml(getApiUrl())}"
-          placeholder="https://tu-api.vercel.app"
-          required
-        >
-        <button class="save-btn" type="submit">
-          Guardar API
-        </button>
-      </form>
+      <p>Configuraci&oacute;n bloqueada</p>
+      <small>Archivo: ${escapeHtml(configPathState || 'Documentos/Paleteria Nopalucan POS/paleteria-pos.config')}</small>
     </div>
   `)
-
-  document.getElementById('api-settings-form').addEventListener('submit', (event) => {
-    event.preventDefault()
-
-    const formData = new FormData(event.currentTarget)
-    localStorage.setItem('apiUrl', formData.get('apiUrl').trim())
-
-    loadData()
-  })
 }
 
 const renderProductModal = (producto = null) => {
@@ -904,8 +965,7 @@ const renderPedidoModal = (pedido = null) => {
       <div class="form-group">
         <label>Estado</label>
         <select name="estado" required>
-          <option ${pedido?.estado === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
-          <option ${pedido?.estado === 'En preparacion' ? 'selected' : ''}>En preparacion</option>
+          <option ${!pedido || pedido?.estado === 'En preparación' || pedido?.estado === 'En preparacion' || pedido?.estado === 'Pendiente' ? 'selected' : ''}>En preparación</option>
           <option ${pedido?.estado === 'Entregado' ? 'selected' : ''}>Entregado</option>
           <option ${pedido?.estado === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
         </select>
@@ -995,6 +1055,10 @@ document.querySelectorAll('.add-btn').forEach(button => {
   })
 })
 
+themeToggle.addEventListener('click', () => {
+  applyTheme(document.body.classList.contains('dark-mode') ? 'light' : 'dark')
+})
+
 const handleActionClick = async (event) => {
   const actionButton = event.target.closest('[data-action]')
 
@@ -1011,6 +1075,28 @@ const handleActionClick = async (event) => {
 
   if (actionButton.dataset.action === 'ticket' && actionButton.dataset.resource === 'pedido') {
     await showTicketDialog('Ticket de pedido', buildPedidoTicket(record))
+    return
+  }
+
+  if (actionButton.dataset.action === 'ticket' && actionButton.dataset.resource === 'venta') {
+    await showTicketDialog('Ticket de venta', record.ticket || buildVentaTicket(record))
+    return
+  }
+
+  if (actionButton.dataset.action === 'status' && actionButton.dataset.resource === 'pedido') {
+    const statusData = await showPedidoStatusDialog(record)
+
+    if (!statusData) {
+      return
+    }
+
+    const updatedPedido = await apiRequest(`${config.path}/${record.id}/estado`, {
+      method: 'PATCH',
+      body: JSON.stringify(statusData)
+    })
+
+    await loadData()
+    await showTicketDialog('Ticket de pedido', buildPedidoTicket(updatedPedido))
     return
   }
 
@@ -1122,6 +1208,13 @@ chargeTicket.addEventListener('click', async () => {
   const metodoPago = ticketPaymentMethod.value
   const items = getTicketItems()
   const total = getTicketTotal()
+  const ticket = buildVentaTicket({
+    metodoPago,
+    items,
+    total,
+    tipo: 'TICKET DE COMPRA',
+    concepto: 'Venta de mostrador'
+  })
   const venta = await apiRequest('/api/ventas', {
     method: 'POST',
     body: JSON.stringify({
@@ -1129,16 +1222,12 @@ chargeTicket.addEventListener('click', async () => {
       metodoPago,
       tipo: 'Venta',
       concepto: 'Venta de mostrador',
-      items
+      items,
+      ticket
     })
   })
 
-  await showTicketDialog('Ticket de compra', buildVentaTicket({
-    id: venta.id,
-    metodoPago,
-    items,
-    total
-  }))
+  await showTicketDialog('Ticket de compra', venta.ticket || ticket)
 
   ticketItems = []
   renderTicket()
@@ -1245,5 +1334,11 @@ window.addEventListener('click', (event) => {
   }
 })
 
-renderApiSettings()
-loadData()
+const boot = async () => {
+  applyTheme(localStorage.getItem('theme') || 'light')
+  await initConfig()
+  renderApiSettings()
+  loadData()
+}
+
+boot()

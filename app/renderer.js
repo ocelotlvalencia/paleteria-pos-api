@@ -12,10 +12,21 @@ const clientesContainer = document.getElementById('clientes-container')
 const proveedoresContainer = document.getElementById('proveedores-container')
 const settingsGrid = document.querySelector('#configuracion .settings-grid')
 
-const DEFAULT_API_URL = 'http://localhost:3000'
+const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
+const LEGACY_LOCAL_API_URLS = new Set([
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+])
 
 const getApiUrl = () => {
-  return (localStorage.getItem('apiUrl') || DEFAULT_API_URL).replace(/\/$/, '')
+  const storedUrl = (localStorage.getItem('apiUrl') || '').replace(/\/$/, '')
+
+  if (!storedUrl || LEGACY_LOCAL_API_URLS.has(storedUrl)) {
+    localStorage.setItem('apiUrl', DEFAULT_API_URL)
+    return DEFAULT_API_URL
+  }
+
+  return storedUrl
 }
 
 const apiRequest = async (path, options = {}) => {
@@ -77,7 +88,7 @@ const renderProductos = (productos) => {
     <article class="product-card">
       <h3>${escapeHtml(producto.nombre)}</h3>
       <p>${money(producto.precio)}</p>
-      <span>${escapeHtml(producto.categoria)} · Stock ${escapeHtml(producto.stock)}</span>
+      <span>${escapeHtml(producto.categoria)} &middot; Stock ${escapeHtml(producto.stock)}</span>
     </article>
   `).join('')
 }
@@ -157,7 +168,7 @@ const loadData = async () => {
 const renderApiSettings = () => {
   settingsGrid.insertAdjacentHTML('beforeend', `
     <div class="setting-card">
-      <h3>API</h3>
+      <h3><span class="card-icon">&#128279;</span> API</h3>
       <p>URL actual</p>
       <form id="api-settings-form" class="api-settings-form">
         <input

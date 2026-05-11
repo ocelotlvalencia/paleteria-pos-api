@@ -331,6 +331,17 @@ body {
   color: #2563eb;
 }
 
+.product-card small {
+  display: block;
+
+  margin-top: 6px;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  color: #059669;
+}
+
 .product-card > span {
   display: block;
 

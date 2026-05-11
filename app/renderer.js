@@ -100,6 +100,52 @@ const money = (value) => {
   return `$${Number(value || 0).toFixed(2)}`
 }
 
+const isWholesaleActive = (item) => {
+  const cantidadMayoreo = Number(item.cantidadMayoreo || 0)
+  const precioMayoreo = Number(item.precioMayoreo || 0)
+
+  return cantidadMayoreo > 0 && precioMayoreo > 0 && item.cantidad >= cantidadMayoreo
+}
+
+const getWholesalePrice = (item) => {
+  return isWholesaleActive(item)
+    ? Number(item.precioMayoreo || 0)
+    : Number(item.precio || 0)
+}
+
+const getWholesaleLabel = (item) => {
+  const cantidadMayoreo = Number(item.cantidadMayoreo || 0)
+
+  if (isWholesaleActive(item)) {
+    return `Mayoreo desde ${cantidadMayoreo} pzas`
+  }
+
+  return ''
+}
+
+const renderTicketItem = (item) => {
+  const unitPrice = getWholesalePrice(item)
+  const wholesaleLabel = getWholesaleLabel(item)
+
+  return `
+    <article class="cart-item" data-ticket-id="${escapeHtml(item.id)}">
+      <div class="cart-item-info">
+        <h4>${escapeHtml(item.nombre)}</h4>
+        <p>${money(unitPrice)} c/u${wholesaleLabel ? ` &middot; ${escapeHtml(wholesaleLabel)}` : ''}</p>
+      </div>
+
+      <div class="quantity-control">
+        <button type="button" data-ticket-action="decrease" data-id="${escapeHtml(item.id)}">-</button>
+        <input type="number" min="1" step="1" value="${escapeHtml(item.cantidad)}" data-ticket-action="quantity" data-id="${escapeHtml(item.id)}">
+        <button type="button" data-ticket-action="increase" data-id="${escapeHtml(item.id)}">+</button>
+      </div>
+
+      <strong>${money(unitPrice * item.cantidad)}</strong>
+      <button class="remove-ticket-item" type="button" data-ticket-action="remove" data-id="${escapeHtml(item.id)}">&times;</button>
+    </article>
+  `
+}
+
 const showAppDialog = ({
   title,
   message,
@@ -231,27 +277,11 @@ const renderTicket = () => {
       </div>
     `
   } else {
-    cartItemsContainer.innerHTML = ticketItems.map(item => `
-      <article class="cart-item" data-ticket-id="${escapeHtml(item.id)}">
-        <div class="cart-item-info">
-          <h4>${escapeHtml(item.nombre)}</h4>
-          <p>${money(item.precio)} c/u</p>
-        </div>
-
-        <div class="quantity-control">
-          <button type="button" data-ticket-action="decrease" data-id="${escapeHtml(item.id)}">-</button>
-          <input type="number" min="1" step="1" value="${escapeHtml(item.cantidad)}" data-ticket-action="quantity" data-id="${escapeHtml(item.id)}">
-          <button type="button" data-ticket-action="increase" data-id="${escapeHtml(item.id)}">+</button>
-        </div>
-
-        <strong>${money(item.precio * item.cantidad)}</strong>
-        <button class="remove-ticket-item" type="button" data-ticket-action="remove" data-id="${escapeHtml(item.id)}">&times;</button>
-      </article>
-    `).join('')
+    cartItemsContainer.innerHTML = ticketItems.map(renderTicketItem).join('')
   }
 
   const subtotal = ticketItems.reduce((total, item) => {
-    return total + item.precio * item.cantidad
+    return total + getWholesalePrice(item) * item.cantidad
   }, 0)
 
   cartSubtotal.innerText = money(subtotal)
@@ -268,6 +298,8 @@ const addProductToTicket = (producto) => {
       id: producto.id,
       nombre: producto.nombre,
       precio: Number(producto.precio || 0),
+      precioMayoreo: Number(producto.precioMayoreo || 0),
+      cantidadMayoreo: Number(producto.cantidadMayoreo || 0),
       cantidad: 1
     })
   }
@@ -287,7 +319,9 @@ const syncTicketProducts = () => {
       return {
         ...item,
         nombre: producto.nombre,
-        precio: Number(producto.precio || 0)
+        precio: Number(producto.precio || 0),
+        precioMayoreo: Number(producto.precioMayoreo || 0),
+        cantidadMayoreo: Number(producto.cantidadMayoreo || 0)
       }
     })
     .filter(Boolean)
@@ -319,6 +353,9 @@ const renderProductos = (productos) => {
       </div>
       <h3>${escapeHtml(producto.nombre)}</h3>
       <p>${money(producto.precio)}</p>
+      ${producto.precioMayoreo && producto.cantidadMayoreo
+        ? `<small>Mayoreo ${money(producto.precioMayoreo)} desde ${escapeHtml(producto.cantidadMayoreo)} pzas</small>`
+        : ''}
       <span>${escapeHtml(producto.categoria)} &middot; Stock ${escapeHtml(producto.stock)}</span>
       ${renderActionButtons('producto', producto.id)}
     </article>
@@ -466,8 +503,18 @@ const renderProductModal = (producto = null) => {
       </div>
 
       <div class="form-group">
-        <label>Precio</label>
+        <label>Precio normal</label>
         <input name="precio" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(producto?.precio ?? '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Precio mayoreo</label>
+        <input name="precioMayoreo" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(producto?.precioMayoreo ?? '')}">
+      </div>
+
+      <div class="form-group">
+        <label>Cantidad para mayoreo</label>
+        <input name="cantidadMayoreo" type="number" min="1" step="1" placeholder="Ej. 10" value="${escapeHtml(producto?.cantidadMayoreo ?? '')}">
       </div>
 
       <div class="form-group">
@@ -728,7 +775,7 @@ payButtons.forEach(button => {
       return
     }
 
-    const total = ticketItems.reduce((sum, item) => sum + item.precio * item.cantidad, 0)
+    const total = ticketItems.reduce((sum, item) => sum + getWholesalePrice(item) * item.cantidad, 0)
     const shouldClearTicket = await showAppDialog({
       title: 'Confirmar cobro',
       message: `Cobrar ${money(total)} y limpiar el ticket?`,

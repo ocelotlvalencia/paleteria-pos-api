@@ -16,6 +16,10 @@ model Producto {
 
   precio      Float
 
+  precioMayoreo Float?
+
+  cantidadMayoreo Int?
+
   categoria   String
 
   imagen      String?

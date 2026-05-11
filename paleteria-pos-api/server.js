@@ -28,6 +28,16 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+const toOptionalNumber = (value) => {
+  if (value === undefined || value === null || value === '') {
+    return null
+  }
+
+  const parsed = Number(value)
+
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 app.get('/', (req, res) => {
   res.json({
     message: 'API ONLINE'
@@ -57,6 +67,8 @@ app.post('/api/productos', asyncHandler(async (req, res) => {
     data: {
       nombre: req.body.nombre,
       precio: toNumber(req.body.precio),
+      precioMayoreo: toOptionalNumber(req.body.precioMayoreo),
+      cantidadMayoreo: toOptionalNumber(req.body.cantidadMayoreo),
       categoria: req.body.categoria,
       imagen: req.body.imagen || null,
       stock: toNumber(req.body.stock)
@@ -74,6 +86,8 @@ app.put('/api/productos/:id', asyncHandler(async (req, res) => {
     data: {
       nombre: req.body.nombre,
       precio: toNumber(req.body.precio),
+      precioMayoreo: toOptionalNumber(req.body.precioMayoreo),
+      cantidadMayoreo: toOptionalNumber(req.body.cantidadMayoreo),
       categoria: req.body.categoria,
       imagen: req.body.imagen || null,
       stock: toNumber(req.body.stock)

@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('appInfo', {
-  name: 'Punto de Venta V.001'
+  name: 'Punto de Venta'
 })
 
 contextBridge.exposeInMainWorld('appConfig', {

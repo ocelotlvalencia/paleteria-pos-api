@@ -352,6 +352,26 @@ td {
   color: #6b7280;
 }
 
+.api-settings-form {
+  margin-top: 18px;
+}
+
+.api-settings-form input {
+  width: 100%;
+
+  border: none;
+
+  background: rgba(0,0,0,0.05);
+
+  border-radius: 18px;
+
+  padding: 16px;
+
+  font-size: 14px;
+
+  outline: none;
+}
+
 /* CART */
 
 .cart {

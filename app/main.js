@@ -1,8 +1,10 @@
 const { app, BrowserWindow } = require('electron')
 const path = require('path')
 
+let mainWindow
+
 const createWindow = () => {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
@@ -17,7 +19,11 @@ const createWindow = () => {
     }
   })
 
-  win.loadFile(path.join(__dirname, 'panel.html'))
+  mainWindow.loadFile(path.join(__dirname, 'panel.html'))
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
 }
 
 app.whenReady().then(() => {

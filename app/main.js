@@ -53,6 +53,15 @@ const readApiUrlFromConfig = () => {
   return configuredUrl || DEFAULT_API_URL
 }
 
+const saveApiUrlToConfig = (apiUrl) => {
+  const configPath = ensureConfigFile()
+  const normalizedUrl = String(apiUrl || DEFAULT_API_URL).trim().replace(/\/$/, '')
+
+  fs.writeFileSync(configPath, `API_URL=${normalizedUrl || DEFAULT_API_URL}\n`, 'utf8')
+
+  return normalizedUrl || DEFAULT_API_URL
+}
+
 const createWindow = () => {
   ensureConfigFile()
 
@@ -82,6 +91,7 @@ const createWindow = () => {
 app.whenReady().then(() => {
   ipcMain.handle('config:get-api-url', () => readApiUrlFromConfig())
   ipcMain.handle('config:get-path', () => ensureConfigFile())
+  ipcMain.handle('config:set-api-url', (event, apiUrl) => saveApiUrlToConfig(apiUrl))
 
   createWindow()
 

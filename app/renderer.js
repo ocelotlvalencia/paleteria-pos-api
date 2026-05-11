@@ -754,12 +754,37 @@ const loadData = async () => {
 
 const renderApiSettings = () => {
   settingsGrid.insertAdjacentHTML('beforeend', `
-    <div class="setting-card locked-setting">
+    <div class="setting-card">
       <h3><span class="card-icon">&#128279;</span> API</h3>
-      <p>Configuraci&oacute;n bloqueada</p>
-      <small>Archivo: ${escapeHtml(configPathState || 'Documentos/Paleteria Nopalucan POS/paleteria-pos.config')}</small>
+      <p>URL actual</p>
+      <form id="api-settings-form" class="api-settings-form">
+        <input
+          type="url"
+          name="apiUrl"
+          value="${escapeHtml(getApiUrl())}"
+          placeholder="https://tu-api.vercel.app"
+          required
+        >
+        <button class="save-btn" type="submit">
+          Guardar API
+        </button>
+      </form>
+      <small>Archivo: ${escapeHtml(configPathState || 'paleteria-pos.config')}</small>
     </div>
   `)
+
+  document.getElementById('api-settings-form').addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    const formData = new FormData(event.currentTarget)
+    const apiUrl = formData.get('apiUrl').trim()
+
+    apiUrlState = window.appConfig
+      ? await window.appConfig.setApiUrl(apiUrl)
+      : apiUrl.replace(/\/$/, '')
+
+    await loadData()
+  })
 }
 
 const renderProductModal = (producto = null) => {
@@ -1024,7 +1049,17 @@ const openModal = (type, record = null) => {
 }
 
 buttons.forEach(button => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
+    if (button.dataset.section === 'configuracion') {
+      await showAppDialog({
+        title: 'Configuracion no disponible',
+        message: 'Esta seccion no esta disponible desde el menu principal.',
+        confirmText: 'Entendido',
+        showCancel: false
+      })
+      return
+    }
+
     buttons.forEach(btn => {
       btn.classList.remove('active')
     })

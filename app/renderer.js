@@ -100,6 +100,54 @@ const money = (value) => {
   return `$${Number(value || 0).toFixed(2)}`
 }
 
+const showAppDialog = ({
+  title,
+  message,
+  confirmText = 'Aceptar',
+  cancelText = 'Cancelar',
+  danger = false,
+  showCancel = true
+}) => {
+  return new Promise((resolve) => {
+    const dialog = document.createElement('div')
+    dialog.className = 'app-dialog show-modal'
+    dialog.innerHTML = `
+      <div class="app-dialog-content">
+        <div class="app-dialog-icon ${danger ? 'danger' : 'info'}">
+          ${danger ? '!' : 'i'}
+        </div>
+        <h2>${escapeHtml(title)}</h2>
+        <p>${escapeHtml(message)}</p>
+        <div class="app-dialog-actions">
+          ${showCancel ? `<button class="dialog-btn secondary" type="button" data-dialog-action="cancel">${escapeHtml(cancelText)}</button>` : ''}
+          <button class="dialog-btn ${danger ? 'danger' : 'primary'}" type="button" data-dialog-action="confirm">${escapeHtml(confirmText)}</button>
+        </div>
+      </div>
+    `
+
+    const closeDialog = (result) => {
+      dialog.remove()
+      resolve(result)
+    }
+
+    dialog.addEventListener('click', (event) => {
+      const actionButton = event.target.closest('[data-dialog-action]')
+
+      if (actionButton?.dataset.dialogAction === 'confirm') {
+        closeDialog(true)
+        return
+      }
+
+      if (actionButton?.dataset.dialogAction === 'cancel' || event.target === dialog) {
+        closeDialog(false)
+      }
+    })
+
+    document.body.appendChild(dialog)
+    dialog.querySelector('[data-dialog-action="confirm"]').focus()
+  })
+}
+
 const setSystemStatus = (status, message) => {
   systemStatus.classList.remove('online', 'offline', 'checking')
   systemStatus.classList.add(status)
@@ -583,7 +631,12 @@ const handleActionClick = async (event) => {
   }
 
   if (actionButton.dataset.action === 'delete') {
-    const shouldDelete = window.confirm(`Eliminar ${config.label} "${record.nombre}"?`)
+    const shouldDelete = await showAppDialog({
+      title: 'Eliminar registro',
+      message: `Eliminar ${config.label} "${record.nombre}"?`,
+      confirmText: 'Eliminar',
+      danger: true
+    })
 
     if (!shouldDelete) {
       return
@@ -664,14 +717,24 @@ cartItemsContainer.addEventListener('input', (event) => {
 })
 
 payButtons.forEach(button => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
     if (!ticketItems.length) {
-      window.alert('Agrega productos al ticket antes de cobrar.')
+      await showAppDialog({
+        title: 'Ticket vacio',
+        message: 'Agrega productos al ticket antes de cobrar.',
+        confirmText: 'Entendido',
+        showCancel: false
+      })
       return
     }
 
     const total = ticketItems.reduce((sum, item) => sum + item.precio * item.cantidad, 0)
-    const shouldClearTicket = window.confirm(`Cobrar ${money(total)} y limpiar el ticket?`)
+    const shouldClearTicket = await showAppDialog({
+      title: 'Confirmar cobro',
+      message: `Cobrar ${money(total)} y limpiar el ticket?`,
+      confirmText: 'Cobrar',
+      cancelText: 'Cancelar'
+    })
 
     if (!shouldClearTicket) {
       return

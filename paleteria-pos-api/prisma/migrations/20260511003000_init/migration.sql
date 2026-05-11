@@ -1,0 +1,49 @@
+CREATE TABLE "Producto" (
+  "id" SERIAL NOT NULL,
+  "nombre" TEXT NOT NULL,
+  "precio" DOUBLE PRECISION NOT NULL,
+  "categoria" TEXT NOT NULL,
+  "stock" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT "Producto_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "Cliente" (
+  "id" SERIAL NOT NULL,
+  "nombre" TEXT NOT NULL,
+  "telefono" TEXT,
+  "puntos" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT "Cliente_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "Proveedor" (
+  "id" SERIAL NOT NULL,
+  "nombre" TEXT NOT NULL,
+  "contacto" TEXT,
+  "telefono" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT "Proveedor_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "MateriaPrima" (
+  "id" SERIAL NOT NULL,
+  "nombre" TEXT NOT NULL,
+  "stock" DOUBLE PRECISION NOT NULL,
+  "unidad" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT "MateriaPrima_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE "Venta" (
+  "id" SERIAL NOT NULL,
+  "total" DOUBLE PRECISION NOT NULL,
+  "metodoPago" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  CONSTRAINT "Venta_pkey" PRIMARY KEY ("id")
+);

@@ -7,11 +7,15 @@
 
   "scripts": {
     "dev": "node server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy"
   },
 
   "dependencies": {
     "@prisma/client": "^7.8.0",
+    "@prisma/adapter-neon": "^7.8.0",
     "@vercel/node": "^5.7.17",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

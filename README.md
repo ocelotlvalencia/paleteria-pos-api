@@ -31,3 +31,21 @@ npm run dev
 
 La API necesita un archivo `.env` dentro de `paleteria-pos-api/`.
 Usa `paleteria-pos-api/.env.example` como base.
+
+## Neon y Vercel
+
+En Neon crea una base PostgreSQL y copia estas URLs:
+
+- `DATABASE_URL`: URL pooled para runtime.
+- `DIRECT_URL`: URL directa para migraciones.
+
+En Vercel configura esas mismas variables dentro del proyecto de la API.
+Despues ejecuta las migraciones:
+
+```bash
+cd paleteria-pos-api
+npm run prisma:migrate
+```
+
+Cuando Vercel te entregue la URL de la API, abre la app, entra a
+`Configuracion` y guarda esa URL en la tarjeta `API`.

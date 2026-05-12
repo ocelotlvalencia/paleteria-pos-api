@@ -622,8 +622,15 @@ const setTableMessage = (container, columns, message) => {
 }
 
 const renderActionButtons = (resource, id) => {
+  const editableResources = new Set(['producto', 'materia', 'cliente', 'pedido', 'gasto', 'proveedor'])
+
   return `
     <div class="row-actions">
+      ${editableResources.has(resource)
+        ? `<button class="action-btn edit" type="button" data-action="edit" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Editar" aria-label="Editar">
+            &#9998;
+          </button>`
+        : ''}
       ${resource === 'pedido'
         ? `<button class="action-btn ticket" type="button" data-action="ticket" data-resource="${resource}" data-id="${escapeHtml(id)}" title="Ticket de pedido" aria-label="Ticket de pedido">
             &#129534;

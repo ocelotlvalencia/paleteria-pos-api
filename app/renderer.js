@@ -485,6 +485,7 @@ const showTicketDialog = (title, content) => {
         <pre>${escapeHtml(content)}</pre>
         <div class="app-dialog-actions">
           <button class="dialog-btn secondary" type="button" data-dialog-action="cancel">Cerrar</button>
+          <button class="dialog-btn whatsapp" type="button" data-dialog-action="whatsapp">WhatsApp</button>
           <button class="dialog-btn primary" type="button" data-dialog-action="confirm">Imprimir</button>
         </div>
       </div>
@@ -501,6 +502,15 @@ const showTicketDialog = (title, content) => {
       if (actionButton?.dataset.dialogAction === 'confirm') {
         window.print()
         closeDialog()
+        return
+      }
+
+      if (actionButton?.dataset.dialogAction === 'whatsapp') {
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(content)}`
+
+        window.appShare?.sendWhatsApp(content).catch(() => {
+          window.open(whatsappUrl, '_blank')
+        }) || window.open(whatsappUrl, '_blank')
         return
       }
 

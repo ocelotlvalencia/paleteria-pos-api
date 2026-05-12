@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const fs = require('fs')
 const path = require('path')
 
@@ -183,6 +183,11 @@ app.whenReady().then(() => {
   ipcMain.handle('config:set-api-url', (event, apiUrl) => saveApiUrlToConfig(apiUrl))
   ipcMain.handle('config:get-theme', () => readThemeFromConfig())
   ipcMain.handle('config:set-theme', (event, theme) => saveThemeToConfig(theme))
+  ipcMain.handle('share:whatsapp', (event, text) => {
+    const message = encodeURIComponent(String(text || ''))
+
+    return shell.openExternal(`https://wa.me/?text=${message}`)
+  })
 
   createWindow()
 

@@ -11,3 +11,7 @@ contextBridge.exposeInMainWorld('appConfig', {
   getTheme: () => ipcRenderer.invoke('config:get-theme'),
   setTheme: (theme) => ipcRenderer.invoke('config:set-theme', theme)
 })
+
+contextBridge.exposeInMainWorld('appShare', {
+  sendWhatsApp: (text) => ipcRenderer.invoke('share:whatsapp', text)
+})

@@ -1094,8 +1094,13 @@ const renderProductModal = (producto = null) => {
       </div>
 
       <div class="form-group">
-        <label>Stock</label>
+        <label>Stock actual</label>
         <input name="stock" type="number" min="0" step="1" placeholder="0" value="${escapeHtml(producto?.stock ?? 0)}">
+      </div>
+
+      <div class="form-group">
+        <label>Agregar stock</label>
+        <input name="stockNuevo" type="number" min="0" step="1" placeholder="0" value="">
       </div>
 
       <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar producto'}</button>
@@ -1653,6 +1658,14 @@ modalBody.addEventListener('submit', async (event) => {
   const resource = form.dataset.resource
   const isEditing = Boolean(form.dataset.id)
   const config = resourceConfig[resource]
+
+  if (resource === 'producto') {
+    const stockActual = Math.max(0, Math.floor(Number(data.stock) || 0))
+    const stockNuevo = Math.max(0, Math.floor(Number(data.stockNuevo) || 0))
+
+    data.stock = String(stockActual + stockNuevo)
+    delete data.stockNuevo
+  }
 
   const savedRecord = await apiRequest(isEditing ? `${config.path}/${form.dataset.id}` : config.path, {
     method: isEditing ? 'PUT' : 'POST',

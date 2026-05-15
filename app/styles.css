@@ -1080,12 +1080,15 @@ td small {
 
 .app-dialog-content {
   width: min(420px, calc(100vw - 40px));
+  max-height: calc(100vh - 40px);
 
   background: white;
 
   border-radius: 30px;
 
   padding: 28px;
+
+  overflow-y: auto;
 
   text-align: center;
 
@@ -1270,6 +1273,50 @@ td small {
   overscroll-behavior: contain;
 
   padding: 0 25px 25px;
+}
+
+#modal-body,
+.app-dialog-content,
+.monthly-report-table,
+.ticket-dialog pre {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107,114,128,0.45) transparent;
+}
+
+#modal-body::-webkit-scrollbar,
+.app-dialog-content::-webkit-scrollbar,
+.monthly-report-table::-webkit-scrollbar,
+.ticket-dialog pre::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+#modal-body::-webkit-scrollbar-track,
+.app-dialog-content::-webkit-scrollbar-track,
+.monthly-report-table::-webkit-scrollbar-track,
+.ticket-dialog pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#modal-body::-webkit-scrollbar-thumb,
+.app-dialog-content::-webkit-scrollbar-thumb,
+.monthly-report-table::-webkit-scrollbar-thumb,
+.ticket-dialog pre::-webkit-scrollbar-thumb {
+  background: rgba(107,114,128,0.45);
+
+  border: 2px solid transparent;
+  border-radius: 999px;
+
+  background-clip: padding-box;
+}
+
+#modal-body::-webkit-scrollbar-thumb:hover,
+.app-dialog-content::-webkit-scrollbar-thumb:hover,
+.monthly-report-table::-webkit-scrollbar-thumb:hover,
+.ticket-dialog pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(75,85,99,0.68);
+
+  background-clip: padding-box;
 }
 
 /* FORM */
@@ -1717,6 +1764,36 @@ body.dark-mode .modal-content,
 body.dark-mode .app-dialog-content,
 body.dark-mode .quantity-control {
   background: #171c26;
+}
+
+body.dark-mode #modal-body,
+body.dark-mode .app-dialog-content,
+body.dark-mode .monthly-report-table,
+body.dark-mode .ticket-dialog pre {
+  scrollbar-color: rgba(148,163,184,0.64) #10131a;
+}
+
+body.dark-mode #modal-body::-webkit-scrollbar-track,
+body.dark-mode .app-dialog-content::-webkit-scrollbar-track,
+body.dark-mode .monthly-report-table::-webkit-scrollbar-track,
+body.dark-mode .ticket-dialog pre::-webkit-scrollbar-track {
+  background: #10131a;
+}
+
+body.dark-mode #modal-body::-webkit-scrollbar-thumb,
+body.dark-mode .app-dialog-content::-webkit-scrollbar-thumb,
+body.dark-mode .monthly-report-table::-webkit-scrollbar-thumb,
+body.dark-mode .ticket-dialog pre::-webkit-scrollbar-thumb {
+  background: #475569;
+
+  border-color: #10131a;
+}
+
+body.dark-mode #modal-body::-webkit-scrollbar-thumb:hover,
+body.dark-mode .app-dialog-content::-webkit-scrollbar-thumb:hover,
+body.dark-mode .monthly-report-table::-webkit-scrollbar-thumb:hover,
+body.dark-mode .ticket-dialog pre::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
 body.dark-mode .product-empty-state {

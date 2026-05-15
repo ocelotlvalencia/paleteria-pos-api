@@ -16,6 +16,8 @@ model Producto {
 
   precio      Float
 
+  precioPremium Float?
+
   precioMayoreo Float?
 
   cantidadMayoreo Int?

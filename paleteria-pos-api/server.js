@@ -122,6 +122,7 @@ app.post('/api/productos', asyncHandler(async (req, res) => {
     data: {
       nombre: req.body.nombre,
       precio: toNumber(req.body.precio),
+      precioPremium: toOptionalNumber(req.body.precioPremium),
       precioMayoreo: toOptionalNumber(req.body.precioMayoreo),
       cantidadMayoreo: toOptionalNumber(req.body.cantidadMayoreo),
       categoria: req.body.categoria,
@@ -141,6 +142,7 @@ app.put('/api/productos/:id', asyncHandler(async (req, res) => {
     data: {
       nombre: req.body.nombre,
       precio: toNumber(req.body.precio),
+      precioPremium: toOptionalNumber(req.body.precioPremium),
       precioMayoreo: toOptionalNumber(req.body.precioMayoreo),
       cantidadMayoreo: toOptionalNumber(req.body.cantidadMayoreo),
       categoria: req.body.categoria,

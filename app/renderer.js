@@ -761,6 +761,7 @@ const addProductToTicket = (producto) => {
       id: producto.id,
       nombre: producto.nombre,
       precio: Number(producto.precio || 0),
+      precioPremium: Number(producto.precioPremium || 0),
       precioMayoreo: Number(producto.precioMayoreo || 0),
       cantidadMayoreo: Number(producto.cantidadMayoreo || 0),
       cantidad: 1
@@ -783,6 +784,7 @@ const syncTicketProducts = () => {
         ...item,
         nombre: producto.nombre,
         precio: Number(producto.precio || 0),
+        precioPremium: Number(producto.precioPremium || 0),
         precioMayoreo: Number(producto.precioMayoreo || 0),
         cantidadMayoreo: Number(producto.cantidadMayoreo || 0)
       }
@@ -817,6 +819,9 @@ const renderProductos = (productos) => {
       </div>
       <h3>${escapeHtml(producto.nombre)}</h3>
       <p>${money(producto.precio)}</p>
+      ${producto.precioPremium
+        ? `<small>Premium ${money(producto.precioPremium)}</small>`
+        : ''}
       ${producto.precioMayoreo && producto.cantidadMayoreo
         ? `<small>Mayoreo ${money(producto.precioMayoreo)} desde ${escapeHtml(producto.cantidadMayoreo)} pzas</small>`
         : ''}
@@ -1076,6 +1081,11 @@ const renderProductModal = (producto = null) => {
       <div class="form-group">
         <label>Precio normal</label>
         <input name="precio" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(producto?.precio ?? '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Precio Premium</label>
+        <input name="precioPremium" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(producto?.precioPremium ?? '')}">
       </div>
 
       <div class="form-group">

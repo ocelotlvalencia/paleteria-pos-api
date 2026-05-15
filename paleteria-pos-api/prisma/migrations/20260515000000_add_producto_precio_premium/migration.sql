@@ -1,0 +1,1 @@
+ALTER TABLE "Producto" ADD COLUMN "precioPremium" DOUBLE PRECISION;

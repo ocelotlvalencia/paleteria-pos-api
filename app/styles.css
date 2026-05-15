@@ -858,6 +858,23 @@ td small {
   font-weight: 700;
 }
 
+.ticket-client {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ticket-client .hidden {
+  display: none;
+}
+
+.ticket-client-new {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.payment-method input,
 .payment-method select {
   border: none;
 
@@ -1738,6 +1755,7 @@ body.dark-mode .image-preview,
 body.dark-mode .form-group input,
 body.dark-mode .form-group select,
 body.dark-mode .form-group textarea,
+body.dark-mode .payment-method input,
 body.dark-mode .payment-method select,
 body.dark-mode .api-settings-form input {
   background: rgba(255,255,255,0.08);
@@ -1814,8 +1832,13 @@ body.dark-mode .product-empty-icon {
 body.dark-mode .form-group input,
 body.dark-mode .form-group select,
 body.dark-mode .form-group textarea,
+body.dark-mode .payment-method input,
 body.dark-mode .payment-method select {
   color: #f9fafb;
+}
+
+body.dark-mode .payment-method {
+  color: #a7b0c0;
 }
 
 body.dark-mode .form-group select,
@@ -1828,6 +1851,7 @@ body.dark-mode .payment-method select {
 }
 
 body.dark-mode .form-group select:focus,
+body.dark-mode .payment-method input:focus,
 body.dark-mode .payment-method select:focus {
   border-color: rgba(222,11,91,0.72);
 

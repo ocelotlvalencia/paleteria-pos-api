@@ -102,6 +102,12 @@ model Venta {
 
   concepto      String?
 
+  clienteId     Int?
+
+  cliente       String?
+
+  telefono      String?
+
   pedidoId      Int?
 
   ticket        String?

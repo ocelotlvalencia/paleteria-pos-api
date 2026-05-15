@@ -1,0 +1,4 @@
+ALTER TABLE "Venta"
+ADD COLUMN "clienteId" INTEGER,
+ADD COLUMN "cliente" TEXT,
+ADD COLUMN "telefono" TEXT;

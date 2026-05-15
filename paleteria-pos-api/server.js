@@ -54,12 +54,14 @@ const buildPedidoItems = (pedido, concepto, total) => {
   }]
 }
 
-const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [], total, concepto }) => {
+const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [], total, concepto, cliente, telefono }) => {
   return [
     'PALETERIA NOPALUCAN',
     title,
     id ? `Folio #${id}` : 'Folio pendiente',
     concepto ? `Concepto: ${concepto}` : '',
+    cliente !== undefined ? `Cliente: ${cliente || 'Sin cliente'}` : '',
+    telefono ? `Telefono: ${telefono}` : '',
     `Metodo: ${metodoPago || 'Efectivo'}`,
     '',
     'Detalle:',
@@ -373,6 +375,9 @@ app.post('/api/ventas', asyncHandler(async (req, res) => {
       metodoPago: req.body.metodoPago || 'Efectivo',
       tipo: req.body.tipo || 'Venta',
       concepto: req.body.concepto || null,
+      clienteId: toOptionalNumber(req.body.clienteId),
+      cliente: req.body.cliente || null,
+      telefono: req.body.telefono || null,
       pedidoId: toOptionalNumber(req.body.pedidoId),
       items,
       ticket: req.body.ticket || buildTicketText({
@@ -380,7 +385,9 @@ app.post('/api/ventas', asyncHandler(async (req, res) => {
         metodoPago: req.body.metodoPago || 'Efectivo',
         items,
         total: toNumber(req.body.total),
-        concepto: req.body.concepto
+        concepto: req.body.concepto,
+        cliente: req.body.cliente,
+        telefono: req.body.telefono
       })
     }
   })

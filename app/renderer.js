@@ -24,6 +24,10 @@ const statusText = document.getElementById('status-text')
 const cartItemsContainer = document.getElementById('cart-items')
 const cartSubtotal = document.getElementById('cart-subtotal')
 const cartTotal = document.getElementById('cart-total')
+const ticketClientMode = document.getElementById('ticket-client-mode')
+const ticketClientSelect = document.getElementById('ticket-client-select')
+const ticketClientName = document.getElementById('ticket-client-name')
+const ticketClientPhone = document.getElementById('ticket-client-phone')
 const ticketPaymentMethod = document.getElementById('ticket-payment-method')
 const chargeTicket = document.getElementById('charge-ticket')
 const cancelTicket = document.getElementById('cancel-ticket')
@@ -157,7 +161,7 @@ const closeCustomSelects = (except = null) => {
 }
 
 const enhanceCustomSelects = (root = document) => {
-  root.querySelectorAll('select:not([data-enhanced-select])').forEach(select => {
+  root.querySelectorAll('select:not([data-enhanced-select]):not([data-native-select])').forEach(select => {
     const wrapper = document.createElement('div')
     const button = document.createElement('button')
     const value = document.createElement('span')
@@ -408,6 +412,104 @@ const getWholesaleLabel = (item) => {
   }
 
   return ''
+}
+
+const getTicketClientMode = () => {
+  return ticketClientMode?.value || 'none'
+}
+
+const syncTicketClientControls = () => {
+  const mode = getTicketClientMode()
+  const existingField = document.querySelector('.ticket-client-existing')
+  const newFields = document.querySelector('.ticket-client-new')
+
+  existingField?.classList.toggle('hidden', mode !== 'existing')
+  newFields?.classList.toggle('hidden', mode !== 'new')
+}
+
+const renderTicketClientOptions = () => {
+  if (!ticketClientSelect) {
+    return
+  }
+
+  const selectedClientId = ticketClientSelect.value
+
+  ticketClientSelect.innerHTML = `
+    <option value="">Elige un cliente</option>
+    ${clientesState.map(cliente => `
+      <option value="${escapeHtml(cliente.id)}" ${String(cliente.id) === selectedClientId ? 'selected' : ''}>
+        ${escapeHtml(cliente.nombre)}${cliente.telefono ? ` - ${escapeHtml(cliente.telefono)}` : ''}
+      </option>
+    `).join('')}
+  `
+}
+
+const resetTicketClient = () => {
+  if (ticketClientMode) {
+    ticketClientMode.value = 'none'
+    ticketClientMode.dispatchEvent(new Event('change', { bubbles: true }))
+  }
+
+  if (ticketClientSelect) {
+    ticketClientSelect.value = ''
+  }
+
+  if (ticketClientName) {
+    ticketClientName.value = ''
+  }
+
+  if (ticketClientPhone) {
+    ticketClientPhone.value = ''
+  }
+
+  syncTicketClientControls()
+}
+
+const resolveTicketClient = async () => {
+  const mode = getTicketClientMode()
+
+  if (mode === 'none') {
+    return null
+  }
+
+  if (mode === 'existing') {
+    const cliente = clientesState.find(item => String(item.id) === String(ticketClientSelect?.value || ''))
+
+    if (cliente) {
+      return cliente
+    }
+
+    await showAppDialog({
+      title: 'Selecciona un cliente',
+      message: 'Elige un cliente registrado o cambia a Sin cliente.',
+      confirmText: 'Entendido',
+      showCancel: false
+    })
+
+    return undefined
+  }
+
+  const nombre = ticketClientName?.value.trim() || ''
+  const telefono = ticketClientPhone?.value.trim() || ''
+
+  if (!nombre) {
+    await showAppDialog({
+      title: 'Nombre requerido',
+      message: 'Escribe el nombre del cliente nuevo antes de cobrar.',
+      confirmText: 'Entendido',
+      showCancel: false
+    })
+
+    return undefined
+  }
+
+  return apiRequest('/api/clientes', {
+    method: 'POST',
+    body: JSON.stringify({
+      nombre,
+      telefono
+    })
+  })
 }
 
 const renderTicketItem = (item) => {
@@ -713,12 +815,17 @@ const buildPedidoTicket = (pedido) => {
   ].join('\n')
 }
 
-const buildVentaTicket = ({ id, metodoPago, items, total, tipo = 'TICKET DE COMPRA', concepto = '', createdAt = new Date().toISOString() }) => {
+const buildVentaTicket = ({ id, metodoPago, items, total, tipo = 'TICKET DE COMPRA', concepto = '', cliente = null, telefono = null, createdAt = new Date().toISOString() }) => {
+  const clienteNombre = typeof cliente === 'string' ? cliente : cliente?.nombre
+  const clienteTelefono = telefono || (typeof cliente === 'string' ? '' : cliente?.telefono)
+
   return [
     'PALETERIA NOPALUCAN',
     tipo,
     id ? `Venta #${id}` : 'Venta',
     concepto ? `Concepto: ${concepto}` : '',
+    clienteNombre ? `Cliente: ${clienteNombre}` : 'Cliente: Sin cliente',
+    clienteTelefono ? `Telefono: ${clienteTelefono}` : '',
     `Fecha: ${formatDateTime(createdAt)}`,
     `Metodo: ${metodoPago}`,
     '',
@@ -854,6 +961,7 @@ const renderMateriaPrima = (items) => {
 
 const renderClientes = (clientes) => {
   clientesState = clientes
+  renderTicketClientOptions()
 
   if (!clientes.length) {
     setTableMessage(clientesContainer, 3, 'No hay clientes registrados')
@@ -913,6 +1021,7 @@ const renderVentas = (ventas) => {
       <td>
         ${escapeHtml(venta.metodoPago)}
         <small>${escapeHtml(venta.tipo || 'Venta')}</small>
+        ${venta.cliente ? `<small>Cliente: ${escapeHtml(venta.cliente)}</small>` : ''}
       </td>
       <td>${escapeHtml(summarizeItems(venta.items))}</td>
       <td>${money(venta.total)}</td>
@@ -1550,6 +1659,8 @@ cartItemsContainer.addEventListener('input', (event) => {
   renderTicket()
 })
 
+ticketClientMode?.addEventListener('change', syncTicketClientControls)
+
 chargeTicket.addEventListener('click', async () => {
   if (!ticketItems.length) {
     await showAppDialog({
@@ -1562,6 +1673,12 @@ chargeTicket.addEventListener('click', async () => {
   }
 
   const metodoPago = ticketPaymentMethod.value
+  const cliente = await resolveTicketClient()
+
+  if (cliente === undefined) {
+    return
+  }
+
   const items = getTicketItems()
   const total = getTicketTotal()
   const ticket = buildVentaTicket({
@@ -1569,7 +1686,8 @@ chargeTicket.addEventListener('click', async () => {
     items,
     total,
     tipo: 'TICKET DE COMPRA',
-    concepto: 'Venta de mostrador'
+    concepto: 'Venta de mostrador',
+    cliente
   })
   const venta = await apiRequest('/api/ventas', {
     method: 'POST',
@@ -1578,6 +1696,9 @@ chargeTicket.addEventListener('click', async () => {
       metodoPago,
       tipo: 'Venta',
       concepto: 'Venta de mostrador',
+      clienteId: cliente?.id || null,
+      cliente: cliente?.nombre || null,
+      telefono: cliente?.telefono || null,
       items,
       ticket
     })
@@ -1586,12 +1707,13 @@ chargeTicket.addEventListener('click', async () => {
   await showTicketDialog('Ticket de compra', venta.ticket || ticket)
 
   ticketItems = []
+  resetTicketClient()
   renderTicket()
   loadData()
 })
 
 cancelTicket.addEventListener('click', async () => {
-  if (!ticketItems.length) {
+  if (!ticketItems.length && getTicketClientMode() === 'none') {
     return
   }
 
@@ -1607,6 +1729,7 @@ cancelTicket.addEventListener('click', async () => {
   }
 
   ticketItems = []
+  resetTicketClient()
   renderTicket()
 })
 
@@ -1712,6 +1835,7 @@ const boot = async () => {
   }
 
   enhanceCustomSelects()
+  syncTicketClientControls()
   await initConfig()
   renderApiSettings()
   loadData()

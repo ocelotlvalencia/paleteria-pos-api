@@ -515,6 +515,36 @@
 
       <div class="cart-buttons">
 
+        <div class="ticket-client">
+          <label class="payment-method">
+            <span>Cliente</span>
+            <select id="ticket-client-mode">
+              <option value="none">Sin cliente</option>
+              <option value="existing">Seleccionar cliente</option>
+              <option value="new">Agregar cliente</option>
+            </select>
+          </label>
+
+          <label class="payment-method ticket-client-existing hidden">
+            <span>Seleccionar cliente</span>
+            <select id="ticket-client-select" data-native-select="true">
+              <option value="">Elige un cliente</option>
+            </select>
+          </label>
+
+          <div class="ticket-client-new hidden">
+            <label class="payment-method">
+              <span>Nombre del cliente</span>
+              <input id="ticket-client-name" type="text" placeholder="Nombre">
+            </label>
+
+            <label class="payment-method">
+              <span>Tel&eacute;fono</span>
+              <input id="ticket-client-phone" type="text" placeholder="2481234567">
+            </label>
+          </div>
+        </div>
+
         <label class="payment-method">
           <span>M&eacute;todo de pago</span>
           <select id="ticket-payment-method">

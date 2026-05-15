@@ -221,6 +221,12 @@ const money = (value) => {
   return `$${Number(value || 0).toFixed(2)}`
 }
 
+const preventFocusedNumberInputWheel = (event) => {
+  if (event.target === document.activeElement && event.target.matches('input[type="number"]')) {
+    event.preventDefault()
+  }
+}
+
 const formatDateTime = (value) => {
   if (!value) {
     return 'Sin fecha'
@@ -1662,6 +1668,8 @@ modalBody.addEventListener('submit', async (event) => {
 })
 
 closeModal.addEventListener('click', closeCurrentModal)
+
+document.addEventListener('wheel', preventFocusedNumberInputWheel, { passive: false })
 
 window.addEventListener('click', (event) => {
   if (event.target === modal) {

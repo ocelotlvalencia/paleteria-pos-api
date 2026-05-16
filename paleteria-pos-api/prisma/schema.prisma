@@ -41,6 +41,8 @@ model Cliente {
 
   telefono    String?
 
+  categoria   String   @default("General")
+
   createdAt   DateTime @default(now())
 }
 

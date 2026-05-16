@@ -306,7 +306,8 @@ app.post('/api/clientes', asyncHandler(async (req, res) => {
   const cliente = await prisma.cliente.create({
     data: {
       nombre: req.body.nombre,
-      telefono: req.body.telefono || null
+      telefono: req.body.telefono || null,
+      categoria: req.body.categoria || 'General'
     }
   })
 
@@ -320,7 +321,8 @@ app.put('/api/clientes/:id', asyncHandler(async (req, res) => {
     },
     data: {
       nombre: req.body.nombre,
-      telefono: req.body.telefono || null
+      telefono: req.body.telefono || null,
+      categoria: req.body.categoria || 'General'
     }
   })
 

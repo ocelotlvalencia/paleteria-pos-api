@@ -206,6 +206,7 @@
               <tr>
                 <th>Nombre</th>
                 <th>Tel&eacute;fono</th>
+                <th>Categor&iacute;a</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -213,7 +214,7 @@
             <tbody id="clientes-container">
 
               <tr class="empty-row">
-                <td colspan="3">
+                <td colspan="4">
                   No hay clientes registrados
                 </td>
               </tr>
@@ -555,6 +556,14 @@
             <label class="payment-method">
               <span>Tel&eacute;fono</span>
               <input id="ticket-client-phone" type="text" placeholder="Celular">
+            </label>
+
+            <label class="payment-method">
+              <span>Categor&iacute;a</span>
+              <select id="ticket-client-category">
+                <option>General</option>
+                <option>Premium</option>
+              </select>
             </label>
           </div>
         </div>

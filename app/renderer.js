@@ -27,6 +27,7 @@ const ticketNumber = document.getElementById('ticket-number')
 const ticketClientSelect = document.getElementById('ticket-client-select')
 const ticketClientName = document.getElementById('ticket-client-name')
 const ticketClientPhone = document.getElementById('ticket-client-phone')
+const ticketClientCategory = document.getElementById('ticket-client-category')
 const ticketPaymentMethod = document.getElementById('ticket-payment-method')
 const chargeTicket = document.getElementById('charge-ticket')
 const cancelTicket = document.getElementById('cancel-ticket')
@@ -475,8 +476,8 @@ const getTicketItems = () => {
     id: item.id,
     nombre: item.nombre,
     cantidad: item.cantidad,
-    precioUnitario: getWholesalePrice(item),
-    total: getWholesalePrice(item) * item.cantidad
+    precioUnitario: getTicketUnitPrice(item),
+    total: getTicketUnitPrice(item) * item.cantidad
   }))
 }
 
@@ -500,27 +501,69 @@ const getTicketChargeTotal = (method = ticketPaymentMethod?.value) => {
   return subtotal + getPaymentFee(subtotal, method)
 }
 
+const getSelectedTicketClient = () => {
+  const selectedClientId = ticketClientSelect?.value || ''
+
+  if (!selectedClientId || selectedClientId === 'new') {
+    return null
+  }
+
+  return clientesState.find(cliente => String(cliente.id) === String(selectedClientId)) || null
+}
+
+const isPremiumTicketClient = () => {
+  const selectedClient = getSelectedTicketClient()
+
+  if (selectedClient) {
+    return selectedClient.categoria === 'Premium'
+  }
+
+  return ticketClientSelect?.value === 'new' && ticketClientCategory?.value === 'Premium'
+}
+
+const getCategoryQuantity = (category) => {
+  return ticketItems
+    .filter(item => item.categoria === category)
+    .reduce((sum, item) => sum + Number(item.cantidad || 0), 0)
+}
+
 const isWholesaleActive = (item) => {
   const cantidadMayoreo = Number(item.cantidadMayoreo || 0)
   const precioMayoreo = Number(item.precioMayoreo || 0)
+  const categoryQuantity = getCategoryQuantity(item.categoria)
 
-  return cantidadMayoreo > 0 && precioMayoreo > 0 && item.cantidad >= cantidadMayoreo
+  return cantidadMayoreo > 0 && precioMayoreo > 0 && categoryQuantity >= cantidadMayoreo
 }
 
-const getWholesalePrice = (item) => {
-  return isWholesaleActive(item)
-    ? Number(item.precioMayoreo || 0)
-    : Number(item.precio || 0)
+const getTicketUnitPrice = (item) => {
+  const prices = [Number(item.precio || 0)]
+  const premiumPrice = Number(item.precioPremium || 0)
+  const wholesalePrice = Number(item.precioMayoreo || 0)
+
+  if (isPremiumTicketClient() && premiumPrice > 0) {
+    prices.push(premiumPrice)
+  }
+
+  if (isWholesaleActive(item) && wholesalePrice > 0) {
+    prices.push(wholesalePrice)
+  }
+
+  return Math.min(...prices)
 }
 
 const getWholesaleLabel = (item) => {
   const cantidadMayoreo = Number(item.cantidadMayoreo || 0)
+  const labels = []
 
   if (isWholesaleActive(item)) {
-    return `Mayoreo desde ${cantidadMayoreo} pzas`
+    labels.push(`Mayoreo categoria desde ${cantidadMayoreo} pzas`)
   }
 
-  return ''
+  if (isPremiumTicketClient() && Number(item.precioPremium || 0) > 0) {
+    labels.push('Cliente premium')
+  }
+
+  return labels.join(' · ')
 }
 
 const renderPaymentMethods = () => {
@@ -560,7 +603,7 @@ const renderTicketClientOptions = () => {
     <option value="">Sin cliente</option>
     ${clientesState.map(cliente => `
       <option value="${escapeHtml(cliente.id)}" ${String(cliente.id) === selectedClientId ? 'selected' : ''}>
-        ${escapeHtml(cliente.nombre)}${cliente.telefono ? ` - ${escapeHtml(cliente.telefono)}` : ''}
+        ${escapeHtml(cliente.nombre)}${cliente.categoria === 'Premium' ? ' · Premium' : ''}${cliente.telefono ? ` - ${escapeHtml(cliente.telefono)}` : ''}
       </option>
     `).join('')}
     <option value="new" ${selectedClientId === 'new' ? 'selected' : ''}>Agregar cliente</option>
@@ -595,6 +638,10 @@ const resetTicketClient = () => {
     ticketClientPhone.value = ''
   }
 
+  if (ticketClientCategory) {
+    ticketClientCategory.value = 'General'
+  }
+
   syncTicketClientControls()
 }
 
@@ -611,6 +658,7 @@ const resolveTicketClient = async () => {
 
   const nombre = ticketClientName?.value.trim() || ''
   const telefono = ticketClientPhone?.value.trim() || ''
+  const categoria = ticketClientCategory?.value || 'General'
 
   if (!nombre) {
     await showAppDialog({
@@ -627,13 +675,14 @@ const resolveTicketClient = async () => {
     method: 'POST',
     body: JSON.stringify({
       nombre,
-      telefono
+      telefono,
+      categoria
     })
   })
 }
 
 const renderTicketItem = (item) => {
-  const unitPrice = getWholesalePrice(item)
+  const unitPrice = getTicketUnitPrice(item)
   const wholesaleLabel = getWholesaleLabel(item)
 
   return `
@@ -1080,7 +1129,7 @@ const renderTicket = () => {
   }
 
   const subtotal = ticketItems.reduce((sum, item) => {
-    return sum + getWholesalePrice(item) * item.cantidad
+    return sum + getTicketUnitPrice(item) * item.cantidad
   }, 0)
   const total = subtotal + getPaymentFee(subtotal)
 
@@ -1100,6 +1149,7 @@ const addProductToTicket = (producto) => {
       precioPremium: Number(producto.precioPremium || 0),
       precioMayoreo: Number(producto.precioMayoreo || 0),
       cantidadMayoreo: Number(producto.cantidadMayoreo || 0),
+      categoria: producto.categoria,
       cantidad: 1
     })
   }
@@ -1122,7 +1172,8 @@ const syncTicketProducts = () => {
         precio: Number(producto.precio || 0),
         precioPremium: Number(producto.precioPremium || 0),
         precioMayoreo: Number(producto.precioMayoreo || 0),
-        cantidadMayoreo: Number(producto.cantidadMayoreo || 0)
+        cantidadMayoreo: Number(producto.cantidadMayoreo || 0),
+        categoria: producto.categoria
       }
     })
     .filter(Boolean)
@@ -1193,7 +1244,7 @@ const renderClientes = (clientes) => {
   renderTicketClientOptions()
 
   if (!clientes.length) {
-    setTableMessage(clientesContainer, 3, 'No hay clientes registrados')
+    setTableMessage(clientesContainer, 4, 'No hay clientes registrados')
     return
   }
 
@@ -1201,6 +1252,7 @@ const renderClientes = (clientes) => {
     <tr>
       <td>${escapeHtml(cliente.nombre)}</td>
       <td>${escapeHtml(cliente.telefono || 'Sin telefono')}</td>
+      <td>${escapeHtml(cliente.categoria || 'General')}</td>
       <td>${renderActionButtons('cliente', cliente.id)}</td>
     </tr>
   `).join('')
@@ -1340,7 +1392,7 @@ const loadData = async () => {
     }
 
     materiaPrima ? renderMateriaPrima(materiaPrima) : setTableMessage(materiaContainer, 6, 'No se pudo cargar la materia prima')
-    clientes ? renderClientes(clientes) : setTableMessage(clientesContainer, 3, 'No se pudieron cargar los clientes')
+    clientes ? renderClientes(clientes) : setTableMessage(clientesContainer, 4, 'No se pudieron cargar los clientes')
     proveedores ? renderProveedores(proveedores) : setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
     pedidos ? renderPedidos(pedidos) : setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
     ventas ? renderVentas(ventas) : setTableMessage(ventasContainer, 5, 'No se pudieron cargar las ventas')
@@ -1365,7 +1417,7 @@ const loadData = async () => {
     `
 
     setTableMessage(materiaContainer, 6, 'No se pudo cargar la materia prima')
-    setTableMessage(clientesContainer, 3, 'No se pudieron cargar los clientes')
+    setTableMessage(clientesContainer, 4, 'No se pudieron cargar los clientes')
     setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
     setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
     setTableMessage(ventasContainer, 5, 'No se pudieron cargar las ventas')
@@ -1554,6 +1606,14 @@ const renderClienteModal = (cliente = null) => {
       <div class="form-group">
         <label>Tel&eacute;fono</label>
         <input name="telefono" type="text" placeholder="2481234567" value="${escapeHtml(cliente?.telefono || '')}">
+      </div>
+
+      <div class="form-group">
+        <label>Categor&iacute;a</label>
+        <select name="categoria">
+          <option ${!cliente || cliente?.categoria === 'General' ? 'selected' : ''}>General</option>
+          <option ${cliente?.categoria === 'Premium' ? 'selected' : ''}>Premium</option>
+        </select>
       </div>
 
       <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar cliente'}</button>
@@ -2162,7 +2222,11 @@ cartItemsContainer.addEventListener('input', (event) => {
   renderTicket()
 })
 
-ticketClientSelect?.addEventListener('change', syncTicketClientControls)
+ticketClientSelect?.addEventListener('change', () => {
+  syncTicketClientControls()
+  renderTicket()
+})
+ticketClientCategory?.addEventListener('change', renderTicket)
 ticketPaymentMethod?.addEventListener('change', renderTicket)
 
 chargeTicket.addEventListener('click', async () => {

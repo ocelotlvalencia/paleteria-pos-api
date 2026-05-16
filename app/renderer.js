@@ -24,6 +24,7 @@ const statusText = document.getElementById('status-text')
 const cartItemsContainer = document.getElementById('cart-items')
 const cartSubtotal = document.getElementById('cart-subtotal')
 const cartTotal = document.getElementById('cart-total')
+const ticketNumber = document.getElementById('ticket-number')
 const ticketClientMode = document.getElementById('ticket-client-mode')
 const ticketClientSelect = document.getElementById('ticket-client-select')
 const ticketClientName = document.getElementById('ticket-client-name')
@@ -223,6 +224,12 @@ const enhanceCustomSelects = (root = document) => {
 
 const money = (value) => {
   return `$${Number(value || 0).toFixed(2)}`
+}
+
+const formatTicketNumber = (value) => {
+  const ticketId = Math.max(0, Math.floor(Number(value) || 0))
+
+  return `#${String(ticketId).padStart(4, '0')}`
 }
 
 const preventFocusedNumberInputWheel = (event) => {
@@ -442,6 +449,18 @@ const renderTicketClientOptions = () => {
       </option>
     `).join('')}
   `
+}
+
+const renderNextTicketNumber = () => {
+  if (!ticketNumber) {
+    return
+  }
+
+  const nextId = ventasState.reduce((maxId, venta) => {
+    return Math.max(maxId, Number(venta.id) || 0)
+  }, 0) + 1
+
+  ticketNumber.innerText = formatTicketNumber(nextId)
 }
 
 const resetTicketClient = () => {
@@ -818,11 +837,12 @@ const buildPedidoTicket = (pedido) => {
 const buildVentaTicket = ({ id, metodoPago, items, total, tipo = 'TICKET DE COMPRA', concepto = '', cliente = null, telefono = null, createdAt = new Date().toISOString() }) => {
   const clienteNombre = typeof cliente === 'string' ? cliente : cliente?.nombre
   const clienteTelefono = telefono || (typeof cliente === 'string' ? '' : cliente?.telefono)
+  const ticketType = tipo === 'Venta' ? 'TICKET DE COMPRA' : tipo
 
   return [
     'PALETERIA NOPALUCAN',
-    tipo,
-    id ? `Venta #${id}` : 'Venta',
+    ticketType,
+    id ? `Folio ${formatTicketNumber(id)}` : 'Folio pendiente',
     concepto ? `Concepto: ${concepto}` : '',
     clienteNombre ? `Cliente: ${clienteNombre}` : 'Cliente: Sin cliente',
     clienteTelefono ? `Telefono: ${clienteTelefono}` : '',
@@ -1009,6 +1029,7 @@ const renderPedidos = (pedidos) => {
 
 const renderVentas = (ventas) => {
   ventasState = ventas
+  renderNextTicketNumber()
 
   if (!ventas.length) {
     setTableMessage(ventasContainer, 5, 'No hay ventas registradas')
@@ -1681,14 +1702,6 @@ chargeTicket.addEventListener('click', async () => {
 
   const items = getTicketItems()
   const total = getTicketTotal()
-  const ticket = buildVentaTicket({
-    metodoPago,
-    items,
-    total,
-    tipo: 'TICKET DE COMPRA',
-    concepto: 'Venta de mostrador',
-    cliente
-  })
   const venta = await apiRequest('/api/ventas', {
     method: 'POST',
     body: JSON.stringify({
@@ -1699,12 +1712,11 @@ chargeTicket.addEventListener('click', async () => {
       clienteId: cliente?.id || null,
       cliente: cliente?.nombre || null,
       telefono: cliente?.telefono || null,
-      items,
-      ticket
+      items
     })
   })
 
-  await showTicketDialog('Ticket de compra', venta.ticket || ticket)
+  await showTicketDialog('Ticket de compra', venta.ticket || buildVentaTicket(venta))
 
   ticketItems = []
   resetTicketClient()

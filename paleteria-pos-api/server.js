@@ -38,6 +38,12 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+const formatTicketNumber = (value) => {
+  const ticketId = Math.max(0, Math.floor(Number(value) || 0))
+
+  return `#${String(ticketId).padStart(4, '0')}`
+}
+
 const toDate = (value) => {
   const date = new Date(value)
 
@@ -58,7 +64,7 @@ const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [
   return [
     'PALETERIA NOPALUCAN',
     title,
-    id ? `Folio #${id}` : 'Folio pendiente',
+    id ? `Folio ${formatTicketNumber(id)}` : 'Folio pendiente',
     concepto ? `Concepto: ${concepto}` : '',
     cliente !== undefined ? `Cliente: ${cliente || 'Sin cliente'}` : '',
     telefono ? `Telefono: ${telefono}` : '',
@@ -76,7 +82,7 @@ const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [
 const createPedidoVenta = async ({ pedido, tipo, concepto, total, metodoPago }) => {
   const items = buildPedidoItems(pedido, concepto, total)
 
-  return prisma.venta.create({
+  let venta = await prisma.venta.create({
     data: {
       total,
       metodoPago: metodoPago || 'Efectivo',
@@ -84,15 +90,29 @@ const createPedidoVenta = async ({ pedido, tipo, concepto, total, metodoPago }) 
       concepto,
       pedidoId: pedido.id,
       items,
-      ticket: buildTicketText({
-        title: tipo,
-        metodoPago,
-        items,
-        total,
-        concepto
-      })
+      ticket: null
     }
   })
+
+  const ticket = buildTicketText({
+    title: tipo,
+    id: venta.id,
+    metodoPago,
+    items,
+    total,
+    concepto
+  })
+
+  venta = await prisma.venta.update({
+    where: {
+      id: venta.id
+    },
+    data: {
+      ticket
+    }
+  })
+
+  return venta
 }
 
 app.get('/', (req, res) => {
@@ -369,7 +389,7 @@ app.get('/api/ventas', asyncHandler(async (req, res) => {
 
 app.post('/api/ventas', asyncHandler(async (req, res) => {
   const items = Array.isArray(req.body.items) ? req.body.items : []
-  const venta = await prisma.venta.create({
+  let venta = await prisma.venta.create({
     data: {
       total: toNumber(req.body.total),
       metodoPago: req.body.metodoPago || 'Efectivo',
@@ -380,15 +400,27 @@ app.post('/api/ventas', asyncHandler(async (req, res) => {
       telefono: req.body.telefono || null,
       pedidoId: toOptionalNumber(req.body.pedidoId),
       items,
-      ticket: req.body.ticket || buildTicketText({
-        title: req.body.tipo || 'Venta',
-        metodoPago: req.body.metodoPago || 'Efectivo',
-        items,
-        total: toNumber(req.body.total),
-        concepto: req.body.concepto,
-        cliente: req.body.cliente,
-        telefono: req.body.telefono
-      })
+      ticket: null
+    }
+  })
+
+  const ticket = buildTicketText({
+    title: req.body.ticketTitle || (req.body.tipo === 'Venta' || !req.body.tipo ? 'TICKET DE COMPRA' : req.body.tipo),
+    id: venta.id,
+    metodoPago: req.body.metodoPago || 'Efectivo',
+    items,
+    total: toNumber(req.body.total),
+    concepto: req.body.concepto,
+    cliente: req.body.cliente,
+    telefono: req.body.telefono
+  })
+
+  venta = await prisma.venta.update({
+    where: {
+      id: venta.id
+    },
+    data: {
+      ticket
     }
   })
 

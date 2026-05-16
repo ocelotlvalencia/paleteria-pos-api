@@ -2,6 +2,7 @@ require('dotenv/config')
 
 const express = require('express')
 const cors = require('cors')
+const crypto = require('crypto')
 const { PrismaClient } = require('@prisma/client')
 const { PrismaNeon } = require('@prisma/adapter-neon')
 
@@ -36,6 +37,13 @@ const toOptionalNumber = (value) => {
   const parsed = Number(value)
 
   return Number.isFinite(parsed) ? parsed : null
+}
+
+const hashPassword = (password) => {
+  return crypto
+    .createHash('sha256')
+    .update(String(password || ''))
+    .digest('hex')
 }
 
 const formatTicketNumber = (value) => {
@@ -381,7 +389,14 @@ app.delete('/api/proveedores/:id', asyncHandler(async (req, res) => {
 
 app.get('/api/usuarios', asyncHandler(async (req, res) => {
   const usuarios = await prisma.usuario.findMany({
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      nombre: true,
+      rol: true,
+      permisos: true,
+      createdAt: true
+    }
   })
 
   res.json(usuarios)
@@ -389,11 +404,26 @@ app.get('/api/usuarios', asyncHandler(async (req, res) => {
 
 app.post('/api/usuarios', asyncHandler(async (req, res) => {
   const permisos = Array.isArray(req.body.permisos) ? req.body.permisos : []
+  const password = String(req.body.password || '').trim()
+
+  if (!password) {
+    res.status(400).json({ error: 'La contraseña es requerida' })
+    return
+  }
+
   const usuario = await prisma.usuario.create({
     data: {
       nombre: req.body.nombre,
       rol: req.body.rol || 'Usuario',
+      passwordHash: hashPassword(password),
       permisos
+    },
+    select: {
+      id: true,
+      nombre: true,
+      rol: true,
+      permisos: true,
+      createdAt: true
     }
   })
 
@@ -402,6 +432,7 @@ app.post('/api/usuarios', asyncHandler(async (req, res) => {
 
 app.put('/api/usuarios/:id', asyncHandler(async (req, res) => {
   const permisos = Array.isArray(req.body.permisos) ? req.body.permisos : []
+  const password = String(req.body.password || '').trim()
   const usuario = await prisma.usuario.update({
     where: {
       id: toNumber(req.params.id)
@@ -409,11 +440,52 @@ app.put('/api/usuarios/:id', asyncHandler(async (req, res) => {
     data: {
       nombre: req.body.nombre,
       rol: req.body.rol || 'Usuario',
+      ...(password ? { passwordHash: hashPassword(password) } : {}),
       permisos
+    },
+    select: {
+      id: true,
+      nombre: true,
+      rol: true,
+      permisos: true,
+      createdAt: true
     }
   })
 
   res.json(usuario)
+}))
+
+app.post('/api/auth/verify', asyncHandler(async (req, res) => {
+  const nombre = String(req.body.nombre || '').trim()
+  const password = String(req.body.password || '').trim()
+  const permiso = String(req.body.permiso || '').trim()
+  const usuario = await prisma.usuario.findFirst({
+    where: {
+      nombre
+    }
+  })
+
+  if (!usuario || usuario.passwordHash !== hashPassword(password)) {
+    res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' })
+    return
+  }
+
+  const permisos = Array.isArray(usuario.permisos) ? usuario.permisos : []
+
+  if (permiso && !permisos.includes(permiso)) {
+    res.status(403).json({ ok: false, error: 'No tienes permiso para acceder' })
+    return
+  }
+
+  res.json({
+    ok: true,
+    usuario: {
+      id: usuario.id,
+      nombre: usuario.nombre,
+      rol: usuario.rol,
+      permisos
+    }
+  })
 }))
 
 app.delete('/api/usuarios/:id', asyncHandler(async (req, res) => {

@@ -175,6 +175,8 @@ model Usuario {
 
   rol           String   @default("Usuario")
 
+  passwordHash  String   @default("")
+
   permisos      Json?
 
   createdAt     DateTime @default(now())

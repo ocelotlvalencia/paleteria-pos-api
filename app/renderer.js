@@ -61,6 +61,17 @@ const USER_PERMISSION_OPTIONS = [
   { id: 'configuracion.administracion', label: 'Configuracion: Administracion' },
   { id: 'configuracion.conexion', label: 'Configuracion: Conexion' }
 ]
+const RESTRICTED_SECTIONS = {
+  'corte-caja': 'corte-caja'
+}
+const OPERATION_PERMISSION_BY_SETTING = {
+  ticket: 'configuracion.operacion',
+  printer: 'configuracion.operacion',
+  payments: 'configuracion.operacion'
+}
+const ADMIN_PERMISSION_BY_SETTING = {
+  users: 'configuracion.administracion'
+}
 
 let productosState = []
 let materiaState = []
@@ -74,6 +85,7 @@ let apiUrlState = DEFAULT_API_URL
 let configPathState = ''
 let operationSettingsState = JSON.parse(JSON.stringify(DEFAULT_OPERATION_SETTINGS))
 let usuariosState = []
+const authorizedPermissions = new Set()
 
 const applyTheme = async (theme, options = {}) => {
   const normalizedTheme = theme === 'dark' ? 'dark' : 'light'
@@ -693,6 +705,81 @@ const showAppDialog = ({
   })
 }
 
+const requestPermissionAccess = (permission) => {
+  if (!permission || authorizedPermissions.has(permission)) {
+    return Promise.resolve(true)
+  }
+
+  return new Promise((resolve) => {
+    const dialog = document.createElement('div')
+
+    dialog.className = 'app-dialog show-modal'
+    dialog.innerHTML = `
+      <div class="app-dialog-content">
+        <h2>Acceso restringido</h2>
+        <p>Ingresa un usuario con permiso para continuar.</p>
+        <form class="auth-form">
+          <div class="form-group">
+            <label>Usuario</label>
+            <input name="nombre" type="text" placeholder="Nombre de usuario" required>
+          </div>
+
+          <div class="form-group">
+            <label>Contrase&ntilde;a</label>
+            <input name="password" type="password" placeholder="Contrase&ntilde;a" required>
+          </div>
+
+          <div class="app-dialog-actions">
+            <button class="dialog-btn secondary" type="button" data-dialog-action="cancel">Cancelar</button>
+            <button class="dialog-btn primary" type="submit">Entrar</button>
+          </div>
+        </form>
+      </div>
+    `
+
+    const closeDialog = (result) => {
+      dialog.remove()
+      resolve(result)
+    }
+
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog || event.target.closest('[data-dialog-action="cancel"]')) {
+        closeDialog(false)
+      }
+    })
+
+    dialog.querySelector('form').addEventListener('submit', async (event) => {
+      event.preventDefault()
+
+      const formData = new FormData(event.currentTarget)
+
+      try {
+        await apiRequest('/api/auth/verify', {
+          method: 'POST',
+          body: JSON.stringify({
+            nombre: formData.get('nombre').trim(),
+            password: formData.get('password'),
+            permiso: permission
+          })
+        })
+
+        authorizedPermissions.add(permission)
+        closeDialog(true)
+      } catch (error) {
+        await showAppDialog({
+          title: 'Acceso denegado',
+          message: 'Usuario, contraseña o permiso incorrecto.',
+          confirmText: 'Entendido',
+          showCancel: false
+        })
+      }
+    })
+
+    document.body.appendChild(dialog)
+    dialog.querySelector('input').focus()
+  })
+}
+
 const showTicketDialog = (title, content, options = {}) => {
   return new Promise((resolve) => {
     const dialog = document.createElement('div')
@@ -1289,36 +1376,53 @@ const loadData = async () => {
 
 const renderApiSettings = () => {
   settingsGrid.insertAdjacentHTML('beforeend', `
-    <div class="setting-card">
+    <button class="setting-card setting-action-card" type="button" id="open-api-settings">
       <h3><span class="card-icon">&#128279;</span> API</h3>
-      <p>URL actual</p>
+      <p>URL actual y archivo de configuraci&oacute;n</p>
+    </button>
+  `)
+
+  document.getElementById('open-api-settings').addEventListener('click', async () => {
+    if (!(await requestPermissionAccess('configuracion.conexion'))) {
+      return
+    }
+
+    modal.classList.add('show-modal')
+    modalTitle.innerText = 'Configurar API'
+    modalBody.innerHTML = `
       <form id="api-settings-form" class="api-settings-form">
-        <input
-          type="url"
-          name="apiUrl"
-          value="${escapeHtml(getApiUrl())}"
-          placeholder="https://tu-api.vercel.app"
-          required
-        >
+        <div class="form-group">
+          <label>URL de la API</label>
+          <input
+            type="url"
+            name="apiUrl"
+            value="${escapeHtml(getApiUrl())}"
+            placeholder="https://tu-api.vercel.app"
+            required
+          >
+        </div>
+
+        <small>Archivo: ${escapeHtml(configPathState || 'paleteria-pos.config')}</small>
+
         <button class="save-btn" type="submit">
           Guardar API
         </button>
       </form>
-      <small>Archivo: ${escapeHtml(configPathState || 'paleteria-pos.config')}</small>
-    </div>
-  `)
+    `
 
-  document.getElementById('api-settings-form').addEventListener('submit', async (event) => {
-    event.preventDefault()
+    document.getElementById('api-settings-form').addEventListener('submit', async (event) => {
+      event.preventDefault()
 
-    const formData = new FormData(event.currentTarget)
-    const apiUrl = formData.get('apiUrl').trim()
+      const formData = new FormData(event.currentTarget)
+      const apiUrl = formData.get('apiUrl').trim()
 
-    apiUrlState = window.appConfig
-      ? await window.appConfig.setApiUrl(apiUrl)
-      : apiUrl.replace(/\/$/, '')
+      apiUrlState = window.appConfig
+        ? await window.appConfig.setApiUrl(apiUrl)
+        : apiUrl.replace(/\/$/, '')
 
-    await loadData()
+      closeCurrentModal()
+      await loadData()
+    })
   })
 }
 
@@ -1769,6 +1873,11 @@ const renderUserSettingsModal = () => {
         </select>
       </div>
 
+      <div class="form-group">
+        <label>Contrase&ntilde;a</label>
+        <input name="password" type="password" placeholder="Contrase&ntilde;a de acceso" required>
+      </div>
+
       <div class="permissions-grid">
         ${USER_PERMISSION_OPTIONS.map(option => `
           <label class="settings-toggle">
@@ -1853,6 +1962,12 @@ const openModal = (type, record = null) => {
 
 buttons.forEach(button => {
   button.addEventListener('click', async () => {
+    const permission = RESTRICTED_SECTIONS[button.dataset.section]
+
+    if (permission && !(await requestPermissionAccess(permission))) {
+      return
+    }
+
     buttons.forEach(btn => {
       btn.classList.remove('active')
     })
@@ -1876,13 +1991,31 @@ document.querySelectorAll('.add-btn').forEach(button => {
 })
 
 document.querySelectorAll('[data-operation-setting]').forEach(button => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
+    const permission = OPERATION_PERMISSION_BY_SETTING[button.dataset.operationSetting]
+
+    if (!(await requestPermissionAccess(permission))) {
+      return
+    }
+
     openOperationSettingsModal(button.dataset.operationSetting)
   })
 })
 
 document.querySelectorAll('[data-admin-setting]').forEach(button => {
   button.addEventListener('click', async () => {
+    const permission = ADMIN_PERMISSION_BY_SETTING[button.dataset.adminSetting]
+
+    try {
+      await loadUsuarios()
+    } catch (error) {
+      usuariosState = []
+    }
+
+    if (usuariosState.length && !(await requestPermissionAccess(permission))) {
+      return
+    }
+
     await openAdminSettingsModal(button.dataset.adminSetting)
   })
 })
@@ -2278,6 +2411,7 @@ modalBody.addEventListener('submit', async (event) => {
       body: JSON.stringify({
         nombre: data.name.trim(),
         rol: data.role || 'Usuario',
+        password: data.password,
         permisos: permissions
       })
     })

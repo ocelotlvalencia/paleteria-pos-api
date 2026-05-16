@@ -379,6 +379,53 @@ app.delete('/api/proveedores/:id', asyncHandler(async (req, res) => {
   res.status(204).send()
 }))
 
+app.get('/api/usuarios', asyncHandler(async (req, res) => {
+  const usuarios = await prisma.usuario.findMany({
+    orderBy: { createdAt: 'desc' }
+  })
+
+  res.json(usuarios)
+}))
+
+app.post('/api/usuarios', asyncHandler(async (req, res) => {
+  const permisos = Array.isArray(req.body.permisos) ? req.body.permisos : []
+  const usuario = await prisma.usuario.create({
+    data: {
+      nombre: req.body.nombre,
+      rol: req.body.rol || 'Usuario',
+      permisos
+    }
+  })
+
+  res.status(201).json(usuario)
+}))
+
+app.put('/api/usuarios/:id', asyncHandler(async (req, res) => {
+  const permisos = Array.isArray(req.body.permisos) ? req.body.permisos : []
+  const usuario = await prisma.usuario.update({
+    where: {
+      id: toNumber(req.params.id)
+    },
+    data: {
+      nombre: req.body.nombre,
+      rol: req.body.rol || 'Usuario',
+      permisos
+    }
+  })
+
+  res.json(usuario)
+}))
+
+app.delete('/api/usuarios/:id', asyncHandler(async (req, res) => {
+  await prisma.usuario.delete({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  res.status(204).send()
+}))
+
 app.get('/api/ventas', asyncHandler(async (req, res) => {
   const ventas = await prisma.venta.findMany({
     orderBy: { createdAt: 'desc' }

@@ -164,3 +164,18 @@ model Pedido {
 
   createdAt     DateTime @default(now())
 }
+
+/* USUARIOS */
+
+model Usuario {
+
+  id            Int      @id @default(autoincrement())
+
+  nombre        String
+
+  rol           String   @default("Usuario")
+
+  permisos      Json?
+
+  createdAt     DateTime @default(now())
+}

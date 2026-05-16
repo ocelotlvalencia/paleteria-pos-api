@@ -55,6 +55,12 @@ const DEFAULT_OPERATION_SETTINGS = {
     allowMixed: false
   }
 }
+const USER_PERMISSION_OPTIONS = [
+  { id: 'corte-caja', label: 'Corte de caja' },
+  { id: 'configuracion.operacion', label: 'Configuracion: Operacion' },
+  { id: 'configuracion.administracion', label: 'Configuracion: Administracion' },
+  { id: 'configuracion.conexion', label: 'Configuracion: Conexion' }
+]
 
 let productosState = []
 let materiaState = []
@@ -67,6 +73,7 @@ let ticketItems = []
 let apiUrlState = DEFAULT_API_URL
 let configPathState = ''
 let operationSettingsState = JSON.parse(JSON.stringify(DEFAULT_OPERATION_SETTINGS))
+let usuariosState = []
 
 const applyTheme = async (theme, options = {}) => {
   const normalizedTheme = theme === 'dark' ? 'dark' : 'light'
@@ -168,6 +175,7 @@ const initConfig = async () => {
   if (window.appConfig.getOperationSettings) {
     operationSettingsState = mergeOperationSettings(await window.appConfig.getOperationSettings())
   }
+
 }
 
 const getApiUrl = () => {
@@ -688,7 +696,8 @@ const showAppDialog = ({
 const showTicketDialog = (title, content, options = {}) => {
   return new Promise((resolve) => {
     const dialog = document.createElement('div')
-    const logo = options.logo ?? operationSettingsState.printer.logo
+    const isPrinterMode = operationSettingsState.printer.deliveryMode === 'printer'
+    const logo = isPrinterMode ? options.logo ?? operationSettingsState.printer.logo : ''
     const canPrint = options.canPrint !== false
     dialog.className = 'app-dialog show-modal'
     dialog.innerHTML = `
@@ -1216,7 +1225,7 @@ const loadData = async () => {
   try {
     await checkSystemStatus()
 
-    const [productos, materiaPrima, clientes, proveedores, pedidos, ventas] = await Promise.all([
+    const requests = await Promise.allSettled([
       apiRequest('/api/productos'),
       apiRequest('/api/materia-prima'),
       apiRequest('/api/clientes'),
@@ -1224,19 +1233,36 @@ const loadData = async () => {
       apiRequest('/api/pedidos'),
       apiRequest('/api/ventas')
     ])
+    const [productosResult, materiaResult, clientesResult, proveedoresResult, pedidosResult, ventasResult] = requests
+    const productos = productosResult.status === 'fulfilled' ? productosResult.value : null
+    const materiaPrima = materiaResult.status === 'fulfilled' ? materiaResult.value : null
+    const clientes = clientesResult.status === 'fulfilled' ? clientesResult.value : null
+    const proveedores = proveedoresResult.status === 'fulfilled' ? proveedoresResult.value : null
+    const pedidos = pedidosResult.status === 'fulfilled' ? pedidosResult.value : null
+    const ventas = ventasResult.status === 'fulfilled' ? ventasResult.value : null
 
-    renderProductos(productos)
-    renderMateriaPrima(materiaPrima)
-    renderClientes(clientes)
-    renderProveedores(proveedores)
-    renderPedidos(pedidos)
-    renderVentas(ventas)
+    if (productos) {
+      renderProductos(productos)
+    } else {
+      productsContainer.innerHTML = `
+        <div class="empty-state">
+          <h3>No se pudieron cargar los productos</h3>
+          <p>Revisa la URL en Configuracion o intenta de nuevo.</p>
+        </div>
+      `
+    }
+
+    materiaPrima ? renderMateriaPrima(materiaPrima) : setTableMessage(materiaContainer, 6, 'No se pudo cargar la materia prima')
+    clientes ? renderClientes(clientes) : setTableMessage(clientesContainer, 3, 'No se pudieron cargar los clientes')
+    proveedores ? renderProveedores(proveedores) : setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
+    pedidos ? renderPedidos(pedidos) : setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
+    ventas ? renderVentas(ventas) : setTableMessage(ventasContainer, 5, 'No se pudieron cargar las ventas')
 
     try {
       renderCorteCaja(await apiRequest('/api/corte-caja'))
     } catch (error) {
       renderCorteCaja({
-        totalVentas: ventas.reduce((sum, venta) => sum + Number(venta.total || 0), 0),
+        totalVentas: (ventas || []).reduce((sum, venta) => sum + Number(venta.total || 0), 0),
         totalGastos: 0,
         gastos: []
       })
@@ -1607,7 +1633,7 @@ const renderTicketSettingsModal = () => {
       </div>
 
       <div class="form-group">
-        <label>Imagen superior del ticket</label>
+        <label>Imagen superior del ticket impreso</label>
         <label class="image-upload">
           <input id="ticket-logo-file" type="file" accept="image/*">
           <span>Seleccionar imagen</span>
@@ -1616,6 +1642,7 @@ const renderTicketSettingsModal = () => {
         <div class="image-preview ticket-logo-preview ${printer.logo ? 'has-image' : ''}" id="ticket-logo-preview">
           ${printer.logo ? `<img src="${escapeHtml(printer.logo)}" alt="Logo del ticket">` : '<span>Sin imagen</span>'}
         </div>
+        <small>Solo se usa cuando la forma del ticket es Impresora.</small>
         <button class="dialog-btn secondary ticket-logo-remove" type="button" id="remove-ticket-logo">Quitar imagen</button>
       </div>
 
@@ -1698,6 +1725,68 @@ const renderPaymentSettingsModal = () => {
   `
 }
 
+const renderUserSettingsModal = () => {
+  const users = usuariosState
+
+  modalTitle.innerText = 'Administrar usuarios'
+  modalBody.innerHTML = `
+    <div class="settings-user-list">
+      ${users.length
+        ? users.map(user => `
+            <article class="settings-user-item">
+              <div>
+                <h3>${escapeHtml(user.nombre)}</h3>
+                <p>${escapeHtml(user.rol || 'Usuario')}</p>
+                <small>${escapeHtml((user.permisos || []).map(permission => {
+                  return USER_PERMISSION_OPTIONS.find(option => option.id === permission)?.label || permission
+                }).join(', ') || 'Sin permisos')}</small>
+              </div>
+              <button class="icon-action-btn" type="button" data-user-action="delete" data-user-id="${escapeHtml(user.id)}" title="Eliminar usuario" aria-label="Eliminar usuario">
+                &#128465;
+              </button>
+            </article>
+          `).join('')
+        : `
+            <div class="empty-state">
+              <h3>Sin usuarios</h3>
+              <p>Agrega usuarios para asignar permisos.</p>
+            </div>
+          `}
+    </div>
+
+    <form data-operation-form="users">
+      <div class="form-group">
+        <label>Nombre</label>
+        <input name="name" type="text" placeholder="Nombre del usuario" required>
+      </div>
+
+      <div class="form-group">
+        <label>Rol</label>
+        <select name="role">
+          <option>Administrador</option>
+          <option>Cajero</option>
+          <option>Supervisor</option>
+        </select>
+      </div>
+
+      <div class="permissions-grid">
+        ${USER_PERMISSION_OPTIONS.map(option => `
+          <label class="settings-toggle">
+            <input name="permissions" type="checkbox" value="${escapeHtml(option.id)}">
+            <span>${escapeHtml(option.label)}</span>
+          </label>
+        `).join('')}
+      </div>
+
+      <button class="save-btn" type="submit">Agregar usuario</button>
+    </form>
+  `
+}
+
+const loadUsuarios = async () => {
+  usuariosState = await apiRequest('/api/usuarios')
+}
+
 const openOperationSettingsModal = (type) => {
   modal.classList.add('show-modal')
 
@@ -1711,6 +1800,22 @@ const openOperationSettingsModal = (type) => {
 
   if (type === 'payments') {
     renderPaymentSettingsModal()
+  }
+
+  enhanceCustomSelects(modalBody)
+}
+
+const openAdminSettingsModal = async (type) => {
+  modal.classList.add('show-modal')
+
+  if (type === 'users') {
+    try {
+      await loadUsuarios()
+    } catch (error) {
+      usuariosState = []
+    }
+
+    renderUserSettingsModal()
   }
 
   enhanceCustomSelects(modalBody)
@@ -1773,6 +1878,12 @@ document.querySelectorAll('.add-btn').forEach(button => {
 document.querySelectorAll('[data-operation-setting]').forEach(button => {
   button.addEventListener('click', () => {
     openOperationSettingsModal(button.dataset.operationSetting)
+  })
+})
+
+document.querySelectorAll('[data-admin-setting]').forEach(button => {
+  button.addEventListener('click', async () => {
+    await openAdminSettingsModal(button.dataset.adminSetting)
   })
 })
 
@@ -2035,6 +2146,18 @@ modalBody.addEventListener('change', async (event) => {
 })
 
 modalBody.addEventListener('click', (event) => {
+  const userAction = event.target.closest('[data-user-action]')
+
+  if (userAction?.dataset.userAction === 'delete') {
+    apiRequest(`/api/usuarios/${userAction.dataset.userId}`, {
+      method: 'DELETE'
+    }).then(async () => {
+      await loadUsuarios()
+      renderUserSettingsModal()
+    })
+    return
+  }
+
   if (event.target.id === 'preview-ticket-settings') {
     const form = event.target.closest('form')
     const formData = new FormData(form)
@@ -2145,6 +2268,22 @@ modalBody.addEventListener('submit', async (event) => {
 
     closeCurrentModal()
     renderTicket()
+    return
+  }
+
+  if (operationForm === 'users') {
+    const permissions = formData.getAll('permissions')
+    await apiRequest('/api/usuarios', {
+      method: 'POST',
+      body: JSON.stringify({
+        nombre: data.name.trim(),
+        rol: data.role || 'Usuario',
+        permisos: permissions
+      })
+    })
+
+    await loadUsuarios()
+    renderUserSettingsModal()
     return
   }
 

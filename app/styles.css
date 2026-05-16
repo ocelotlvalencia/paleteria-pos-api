@@ -757,6 +757,49 @@ td {
   accent-color: #DE0B5B;
 }
 
+.settings-user-list {
+  display: grid;
+  gap: 12px;
+
+  margin-bottom: 22px;
+}
+
+.settings-user-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  background: rgba(0,0,0,0.03);
+
+  border-radius: 18px;
+
+  padding: 16px;
+}
+
+.settings-user-item h3 {
+  color: #111827;
+
+  font-size: 18px;
+}
+
+.settings-user-item p,
+.settings-user-item small {
+  display: block;
+
+  margin-top: 4px;
+
+  color: #6b7280;
+}
+
+.permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+
+  margin-bottom: 18px;
+}
+
 /* CART */
 
 .cart {
@@ -1953,6 +1996,7 @@ body.dark-mode .modal-header h2,
 body.dark-mode .app-dialog-content h2,
 body.dark-mode .empty-state h3,
 body.dark-mode .setting-card h3,
+body.dark-mode .settings-user-item h3,
 body.dark-mode .settings-section-header h2 {
   color: #f9fafb;
 }
@@ -1965,6 +2009,8 @@ body.dark-mode .summary-card span,
 body.dark-mode .cart-item p,
 body.dark-mode .empty-state p,
 body.dark-mode .setting-card p,
+body.dark-mode .settings-user-item p,
+body.dark-mode .settings-user-item small,
 body.dark-mode .settings-section-header span,
 body.dark-mode .locked-setting small,
 body.dark-mode td small,
@@ -1979,6 +2025,7 @@ body.dark-mode .category {
 body.dark-mode .category:hover,
 body.dark-mode .sidebar-footer,
 body.dark-mode .cart-item,
+body.dark-mode .settings-user-item,
 body.dark-mode .product-image,
 body.dark-mode .image-preview,
 body.dark-mode .form-group input,

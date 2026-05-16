@@ -25,7 +25,6 @@ const cartItemsContainer = document.getElementById('cart-items')
 const cartSubtotal = document.getElementById('cart-subtotal')
 const cartTotal = document.getElementById('cart-total')
 const ticketNumber = document.getElementById('ticket-number')
-const ticketClientMode = document.getElementById('ticket-client-mode')
 const ticketClientSelect = document.getElementById('ticket-client-select')
 const ticketClientName = document.getElementById('ticket-client-name')
 const ticketClientPhone = document.getElementById('ticket-client-phone')
@@ -421,17 +420,10 @@ const getWholesaleLabel = (item) => {
   return ''
 }
 
-const getTicketClientMode = () => {
-  return ticketClientMode?.value || 'none'
-}
-
 const syncTicketClientControls = () => {
-  const mode = getTicketClientMode()
-  const existingField = document.querySelector('.ticket-client-existing')
   const newFields = document.querySelector('.ticket-client-new')
 
-  existingField?.classList.toggle('hidden', mode !== 'existing')
-  newFields?.classList.toggle('hidden', mode !== 'new')
+  newFields?.classList.toggle('hidden', ticketClientSelect?.value !== 'new')
 }
 
 const renderTicketClientOptions = () => {
@@ -442,13 +434,16 @@ const renderTicketClientOptions = () => {
   const selectedClientId = ticketClientSelect.value
 
   ticketClientSelect.innerHTML = `
-    <option value="">Elige un cliente</option>
+    <option value="">Sin cliente</option>
     ${clientesState.map(cliente => `
       <option value="${escapeHtml(cliente.id)}" ${String(cliente.id) === selectedClientId ? 'selected' : ''}>
         ${escapeHtml(cliente.nombre)}${cliente.telefono ? ` - ${escapeHtml(cliente.telefono)}` : ''}
       </option>
     `).join('')}
+    <option value="new" ${selectedClientId === 'new' ? 'selected' : ''}>Agregar cliente</option>
   `
+
+  syncTicketClientControls()
 }
 
 const renderNextTicketNumber = () => {
@@ -464,11 +459,6 @@ const renderNextTicketNumber = () => {
 }
 
 const resetTicketClient = () => {
-  if (ticketClientMode) {
-    ticketClientMode.value = 'none'
-    ticketClientMode.dispatchEvent(new Event('change', { bubbles: true }))
-  }
-
   if (ticketClientSelect) {
     ticketClientSelect.value = ''
   }
@@ -485,27 +475,14 @@ const resetTicketClient = () => {
 }
 
 const resolveTicketClient = async () => {
-  const mode = getTicketClientMode()
+  const selectedClientId = ticketClientSelect?.value || ''
 
-  if (mode === 'none') {
+  if (!selectedClientId) {
     return null
   }
 
-  if (mode === 'existing') {
-    const cliente = clientesState.find(item => String(item.id) === String(ticketClientSelect?.value || ''))
-
-    if (cliente) {
-      return cliente
-    }
-
-    await showAppDialog({
-      title: 'Selecciona un cliente',
-      message: 'Elige un cliente registrado o cambia a Sin cliente.',
-      confirmText: 'Entendido',
-      showCancel: false
-    })
-
-    return undefined
+  if (selectedClientId !== 'new') {
+    return clientesState.find(item => String(item.id) === String(selectedClientId)) || null
   }
 
   const nombre = ticketClientName?.value.trim() || ''
@@ -844,7 +821,7 @@ const buildVentaTicket = ({ id, metodoPago, items, total, tipo = 'TICKET DE COMP
     ticketType,
     id ? `Folio ${formatTicketNumber(id)}` : 'Folio pendiente',
     concepto ? `Concepto: ${concepto}` : '',
-    clienteNombre ? `Cliente: ${clienteNombre}` : 'Cliente: Sin cliente',
+    clienteNombre ? `Cliente: ${clienteNombre}` : '',
     clienteTelefono ? `Telefono: ${clienteTelefono}` : '',
     `Fecha: ${formatDateTime(createdAt)}`,
     `Metodo: ${metodoPago}`,
@@ -1680,7 +1657,7 @@ cartItemsContainer.addEventListener('input', (event) => {
   renderTicket()
 })
 
-ticketClientMode?.addEventListener('change', syncTicketClientControls)
+ticketClientSelect?.addEventListener('change', syncTicketClientControls)
 
 chargeTicket.addEventListener('click', async () => {
   if (!ticketItems.length) {
@@ -1725,7 +1702,7 @@ chargeTicket.addEventListener('click', async () => {
 })
 
 cancelTicket.addEventListener('click', async () => {
-  if (!ticketItems.length && getTicketClientMode() === 'none') {
+  if (!ticketItems.length && !ticketClientSelect?.value) {
     return
   }
 

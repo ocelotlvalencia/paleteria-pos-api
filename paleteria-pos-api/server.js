@@ -66,7 +66,7 @@ const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [
     title,
     id ? `Folio ${formatTicketNumber(id)}` : 'Folio pendiente',
     concepto ? `Concepto: ${concepto}` : '',
-    cliente !== undefined ? `Cliente: ${cliente || 'Sin cliente'}` : '',
+    cliente ? `Cliente: ${cliente}` : '',
     telefono ? `Telefono: ${telefono}` : '',
     `Metodo: ${metodoPago || 'Efectivo'}`,
     '',

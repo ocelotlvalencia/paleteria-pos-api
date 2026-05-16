@@ -22,7 +22,6 @@ const settingsGrid = document.querySelector('#configuracion .settings-grid')
 const systemStatus = document.getElementById('system-status')
 const statusText = document.getElementById('status-text')
 const cartItemsContainer = document.getElementById('cart-items')
-const cartSubtotal = document.getElementById('cart-subtotal')
 const cartTotal = document.getElementById('cart-total')
 const ticketNumber = document.getElementById('ticket-number')
 const ticketClientSelect = document.getElementById('ticket-client-select')
@@ -537,14 +536,16 @@ const renderTicketItem = (item) => {
         <p>${money(unitPrice)} c/u${wholesaleLabel ? ` &middot; ${escapeHtml(wholesaleLabel)}` : ''}</p>
       </div>
 
-      <div class="quantity-control">
-        <button type="button" data-ticket-action="decrease" data-id="${escapeHtml(item.id)}">-</button>
-        <input type="number" min="1" step="1" value="${escapeHtml(item.cantidad)}" data-ticket-action="quantity" data-id="${escapeHtml(item.id)}">
-        <button type="button" data-ticket-action="increase" data-id="${escapeHtml(item.id)}">+</button>
-      </div>
+      <div class="cart-item-actions">
+        <div class="quantity-control">
+          <button type="button" data-ticket-action="decrease" data-id="${escapeHtml(item.id)}">-</button>
+          <input type="number" min="1" step="1" value="${escapeHtml(item.cantidad)}" data-ticket-action="quantity" data-id="${escapeHtml(item.id)}">
+          <button type="button" data-ticket-action="increase" data-id="${escapeHtml(item.id)}">+</button>
+        </div>
 
-      <strong>${money(unitPrice * item.cantidad)}</strong>
-      <button class="remove-ticket-item" type="button" data-ticket-action="remove" data-id="${escapeHtml(item.id)}">&times;</button>
+        <strong>${money(unitPrice * item.cantidad)}</strong>
+        <button class="remove-ticket-item" type="button" data-ticket-action="remove" data-id="${escapeHtml(item.id)}">&times;</button>
+      </div>
     </article>
   `
 }
@@ -865,12 +866,11 @@ const renderTicket = () => {
     cartItemsContainer.innerHTML = ticketItems.map(renderTicketItem).join('')
   }
 
-  const subtotal = ticketItems.reduce((total, item) => {
-    return total + getWholesalePrice(item) * item.cantidad
+  const total = ticketItems.reduce((sum, item) => {
+    return sum + getWholesalePrice(item) * item.cantidad
   }, 0)
 
-  cartSubtotal.innerText = money(subtotal)
-  cartTotal.innerText = money(subtotal)
+  cartTotal.innerText = money(total)
 }
 
 const addProductToTicket = (producto) => {

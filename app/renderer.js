@@ -221,6 +221,23 @@ const enhanceCustomSelects = (root = document) => {
   })
 }
 
+const refreshCustomSelect = (select) => {
+  if (!select?.dataset.enhancedSelect) {
+    enhanceCustomSelects(select?.parentElement || document)
+    return
+  }
+
+  const wrapper = select.nextElementSibling
+
+  if (wrapper?.classList.contains('custom-select')) {
+    wrapper.remove()
+  }
+
+  delete select.dataset.enhancedSelect
+  select.classList.remove('native-select-hidden')
+  enhanceCustomSelects(select.parentElement || document)
+}
+
 const money = (value) => {
   return `$${Number(value || 0).toFixed(2)}`
 }
@@ -444,6 +461,7 @@ const renderTicketClientOptions = () => {
   `
 
   syncTicketClientControls()
+  refreshCustomSelect(ticketClientSelect)
 }
 
 const renderNextTicketNumber = () => {

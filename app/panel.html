@@ -81,7 +81,7 @@
         <span>Proveedores</span>
       </button>
 
-      <button class="category locked-nav" data-section="configuracion">
+      <button class="category" data-section="configuracion">
         <span class="nav-icon">&#9881;</span>
         <span>Configuraci&oacute;n</span>
       </button>
@@ -441,32 +441,64 @@
 
           <div>
             <h1>Configuraci&oacute;n</h1>
-            <span>Bloqueada. Edita el archivo de configuraci&oacute;n instalado.</span>
+            <span>Ajustes del sistema y conexi&oacute;n</span>
           </div>
 
         </div>
 
-        <div class="settings-grid">
+        <div class="settings-sections">
 
-          <div class="setting-card">
-            <h3><span class="card-icon">&#128424;</span> Impresora</h3>
-            <p>Configurar impresora de tickets</p>
-          </div>
+          <section class="settings-section">
+            <div class="settings-section-header">
+              <h2>Operaci&oacute;n</h2>
+              <span>Ticket, cobro y flujo de venta</span>
+            </div>
 
-          <div class="setting-card">
-            <h3><span class="card-icon">&#128179;</span> Pagos</h3>
-            <p>Configurar m&eacute;todos de pago</p>
-          </div>
+            <div class="settings-grid">
+              <button class="setting-card setting-action-card" type="button" data-operation-setting="ticket">
+                <h3><span class="card-icon">&#129534;</span> Ticket</h3>
+                <p>Formato, contenido e imagen del ticket</p>
+              </button>
 
-          <div class="setting-card">
-            <h3><span class="card-icon">&#128100;</span> Usuarios</h3>
-            <p>Administrar usuarios y permisos</p>
-          </div>
+              <button class="setting-card setting-action-card" type="button" data-operation-setting="printer">
+                <h3><span class="card-icon">&#128424;</span> Impresora</h3>
+                <p>Configurar impresora fisica</p>
+              </button>
 
-          <div class="setting-card">
-            <h3><span class="card-icon">&#127970;</span> Negocio</h3>
-            <p>Informaci&oacute;n del negocio</p>
-          </div>
+              <button class="setting-card setting-action-card" type="button" data-operation-setting="payments">
+                <h3><span class="card-icon">&#128179;</span> Pagos</h3>
+                <p>Configurar m&eacute;todos de pago</p>
+              </button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-header">
+              <h2>Administraci&oacute;n</h2>
+              <span>Usuarios y datos del negocio</span>
+            </div>
+
+            <div class="settings-grid">
+              <div class="setting-card">
+                <h3><span class="card-icon">&#128100;</span> Usuarios</h3>
+                <p>Administrar usuarios y permisos</p>
+              </div>
+
+              <div class="setting-card">
+                <h3><span class="card-icon">&#127970;</span> Negocio</h3>
+                <p>Informaci&oacute;n del negocio</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="settings-section-header">
+              <h2>Conexi&oacute;n</h2>
+              <span>API y archivos de configuraci&oacute;n</span>
+            </div>
+
+            <div class="settings-grid" id="connection-settings-grid"></div>
+          </section>
 
         </div>
 

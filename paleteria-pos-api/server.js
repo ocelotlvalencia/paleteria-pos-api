@@ -404,7 +404,7 @@ app.post('/api/ventas', asyncHandler(async (req, res) => {
     }
   })
 
-  const ticket = buildTicketText({
+  const ticket = req.body.ticket || buildTicketText({
     title: req.body.ticketTitle || (req.body.tipo === 'Venta' || !req.body.tipo ? 'TICKET DE COMPRA' : req.body.tipo),
     id: venta.id,
     metodoPago: req.body.metodoPago || 'Efectivo',

@@ -641,6 +641,34 @@ td {
 
 /* SETTINGS */
 
+.settings-sections {
+  display: grid;
+  gap: 28px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-section-header h2 {
+  color: #111827;
+
+  font-size: 22px;
+}
+
+.settings-section-header span {
+  color: #6b7280;
+
+  font-size: 14px;
+}
+
 .settings-grid {
   display: grid;
 
@@ -658,6 +686,23 @@ td {
 
   box-shadow:
     0 8px 25px rgba(0,0,0,0.04);
+}
+
+.setting-action-card {
+  border: none;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.setting-action-card:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 12px 30px rgba(0,0,0,0.08);
 }
 
 .setting-card h3 {
@@ -690,6 +735,26 @@ td {
   font-size: 14px;
 
   outline: none;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  margin-bottom: 18px;
+
+  color: #374151;
+
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.settings-toggle input {
+  width: 18px;
+  height: 18px;
+
+  accent-color: #DE0B5B;
 }
 
 /* CART */
@@ -1265,6 +1330,17 @@ td small {
   text-align: left;
 }
 
+.ticket-logo {
+  display: block;
+
+  max-width: 180px;
+  max-height: 110px;
+
+  margin: 16px auto 0;
+
+  object-fit: contain;
+}
+
 .monthly-report-dialog {
   width: min(760px, calc(100vw - 40px));
 
@@ -1316,6 +1392,31 @@ td small {
   line-height: 1.45;
 
   color: #111827;
+}
+
+.ticket-logo-preview {
+  margin-top: 12px;
+}
+
+.ticket-logo-preview img {
+  object-fit: contain;
+}
+
+.ticket-logo-remove {
+  width: 100%;
+
+  margin-top: 12px;
+}
+
+.settings-form-actions {
+  display: flex;
+  gap: 12px;
+
+  margin-bottom: 14px;
+}
+
+.settings-form-actions .dialog-btn {
+  flex: 1;
 }
 
 .app-dialog-actions {
@@ -1851,7 +1952,8 @@ body.dark-mode .total-row.final,
 body.dark-mode .modal-header h2,
 body.dark-mode .app-dialog-content h2,
 body.dark-mode .empty-state h3,
-body.dark-mode .setting-card h3 {
+body.dark-mode .setting-card h3,
+body.dark-mode .settings-section-header h2 {
   color: #f9fafb;
 }
 
@@ -1863,6 +1965,7 @@ body.dark-mode .summary-card span,
 body.dark-mode .cart-item p,
 body.dark-mode .empty-state p,
 body.dark-mode .setting-card p,
+body.dark-mode .settings-section-header span,
 body.dark-mode .locked-setting small,
 body.dark-mode td small,
 body.dark-mode .total-row {
@@ -1964,6 +2067,10 @@ body.dark-mode .payment-method select {
 }
 
 body.dark-mode .payment-method {
+  color: #a7b0c0;
+}
+
+body.dark-mode .settings-toggle {
   color: #a7b0c0;
 }
 

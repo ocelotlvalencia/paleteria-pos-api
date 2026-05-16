@@ -5,6 +5,24 @@ const path = require('path')
 let mainWindow
 const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
 const DEFAULT_THEME = 'light'
+const DEFAULT_OPERATION_SETTINGS = {
+  printer: {
+    deliveryMode: 'digital',
+    name: '',
+    ticketWidth: '80',
+    copies: '1',
+    autoPrint: false,
+    header: 'PALETERIA NOPALUCAN',
+    footer: 'Gracias por su compra.',
+    logo: ''
+  },
+  payments: {
+    methods: ['Efectivo', 'Tarjeta'],
+    defaultMethod: 'Efectivo',
+    cardFeePercent: '0',
+    allowMixed: false
+  }
+}
 const isProductionBuild = app.isPackaged
 
 const getInstallConfigPath = () => {
@@ -33,7 +51,7 @@ const ensureConfigFile = () => {
       if (legacyPackagedPath && fs.existsSync(legacyPackagedPath)) {
         fs.copyFileSync(legacyPackagedPath, configPath)
       } else {
-        fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\n`, 'utf8')
+        fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\nOPERATION_SETTINGS=${encodeURIComponent(JSON.stringify(DEFAULT_OPERATION_SETTINGS))}\n`, 'utf8')
       }
     } catch (error) {
       if (!fs.existsSync(fallbackDirectory)) {
@@ -41,7 +59,7 @@ const ensureConfigFile = () => {
       }
 
       if (!fs.existsSync(fallbackPath)) {
-        fs.writeFileSync(fallbackPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\n`, 'utf8')
+        fs.writeFileSync(fallbackPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\nOPERATION_SETTINGS=${encodeURIComponent(JSON.stringify(DEFAULT_OPERATION_SETTINGS))}\n`, 'utf8')
       }
 
       return fallbackPath
@@ -73,6 +91,7 @@ const saveConfig = (nextConfig) => {
   const config = {
     API_URL: DEFAULT_API_URL,
     THEME: DEFAULT_THEME,
+    OPERATION_SETTINGS: encodeURIComponent(JSON.stringify(DEFAULT_OPERATION_SETTINGS)),
     ...readConfig(),
     ...nextConfig
   }
@@ -80,7 +99,7 @@ const saveConfig = (nextConfig) => {
   try {
     fs.writeFileSync(
       configPath,
-      `API_URL=${config.API_URL}\nTHEME=${config.THEME}\n`,
+      Object.entries(config).map(([key, value]) => `${key}=${value}`).join('\n') + '\n',
       'utf8'
     )
   } catch (error) {
@@ -93,7 +112,7 @@ const saveConfig = (nextConfig) => {
 
     fs.writeFileSync(
       fallbackPath,
-      `API_URL=${config.API_URL}\nTHEME=${config.THEME}\n`,
+      Object.entries(config).map(([key, value]) => `${key}=${value}`).join('\n') + '\n',
       'utf8'
     )
   }
@@ -129,6 +148,51 @@ const saveThemeToConfig = (theme) => {
   })
 
   return normalizedTheme
+}
+
+const readOperationSettingsFromConfig = () => {
+  const value = readConfig().OPERATION_SETTINGS
+
+  if (!value) {
+    return DEFAULT_OPERATION_SETTINGS
+  }
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(value))
+
+    return {
+      printer: {
+        ...DEFAULT_OPERATION_SETTINGS.printer,
+        ...(parsed.printer || {})
+      },
+      payments: {
+        ...DEFAULT_OPERATION_SETTINGS.payments,
+        ...(parsed.payments || {})
+      }
+    }
+  } catch (error) {
+    return DEFAULT_OPERATION_SETTINGS
+  }
+}
+
+const saveOperationSettingsToConfig = (settings) => {
+  const currentSettings = readOperationSettingsFromConfig()
+  const nextSettings = {
+    printer: {
+      ...currentSettings.printer,
+      ...(settings?.printer || {})
+    },
+    payments: {
+      ...currentSettings.payments,
+      ...(settings?.payments || {})
+    }
+  }
+
+  saveConfig({
+    OPERATION_SETTINGS: encodeURIComponent(JSON.stringify(nextSettings))
+  })
+
+  return nextSettings
 }
 
 const createWindow = () => {
@@ -183,6 +247,8 @@ app.whenReady().then(() => {
   ipcMain.handle('config:set-api-url', (event, apiUrl) => saveApiUrlToConfig(apiUrl))
   ipcMain.handle('config:get-theme', () => readThemeFromConfig())
   ipcMain.handle('config:set-theme', (event, theme) => saveThemeToConfig(theme))
+  ipcMain.handle('config:get-operation-settings', () => readOperationSettingsFromConfig())
+  ipcMain.handle('config:set-operation-settings', (event, settings) => saveOperationSettingsToConfig(settings))
   ipcMain.handle('share:whatsapp', (event, text) => {
     const message = encodeURIComponent(String(text || ''))
 

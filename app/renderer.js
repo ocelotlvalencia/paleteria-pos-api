@@ -18,7 +18,7 @@ const cashTotalExpenses = document.getElementById('cash-total-expenses')
 const cashBalance = document.getElementById('cash-balance')
 const monthlyCashReport = document.getElementById('monthly-cash-report')
 const stockAlerts = document.getElementById('stock-alerts')
-const settingsGrid = document.querySelector('#configuracion .settings-grid')
+const settingsGrid = document.getElementById('connection-settings-grid')
 const systemStatus = document.getElementById('system-status')
 const statusText = document.getElementById('status-text')
 const cartItemsContainer = document.getElementById('cart-items')
@@ -37,6 +37,24 @@ const LEGACY_LOCAL_API_URLS = new Set([
   'http://localhost:3000',
   'http://127.0.0.1:3000'
 ])
+const DEFAULT_OPERATION_SETTINGS = {
+  printer: {
+    deliveryMode: 'digital',
+    name: '',
+    ticketWidth: '80',
+    copies: '1',
+    autoPrint: false,
+    header: 'PALETERIA NOPALUCAN',
+    footer: 'Gracias por su compra.',
+    logo: ''
+  },
+  payments: {
+    methods: ['Efectivo', 'Tarjeta'],
+    defaultMethod: 'Efectivo',
+    cardFeePercent: '0',
+    allowMixed: false
+  }
+}
 
 let productosState = []
 let materiaState = []
@@ -48,6 +66,7 @@ let proveedoresState = []
 let ticketItems = []
 let apiUrlState = DEFAULT_API_URL
 let configPathState = ''
+let operationSettingsState = JSON.parse(JSON.stringify(DEFAULT_OPERATION_SETTINGS))
 
 const applyTheme = async (theme, options = {}) => {
   const normalizedTheme = theme === 'dark' ? 'dark' : 'light'
@@ -104,6 +123,34 @@ const resourceConfig = {
   }
 }
 
+const mergeOperationSettings = (settings = {}) => {
+  const methods = Array.isArray(settings.payments?.methods) && settings.payments.methods.length
+    ? settings.payments.methods
+    : DEFAULT_OPERATION_SETTINGS.payments.methods
+
+  return {
+    printer: {
+      ...DEFAULT_OPERATION_SETTINGS.printer,
+      ...(settings.printer || {})
+    },
+    payments: {
+      ...DEFAULT_OPERATION_SETTINGS.payments,
+      ...(settings.payments || {}),
+      methods
+    }
+  }
+}
+
+const saveOperationSettings = async (settings) => {
+  operationSettingsState = mergeOperationSettings(settings)
+
+  if (window.appConfig?.setOperationSettings) {
+    operationSettingsState = mergeOperationSettings(await window.appConfig.setOperationSettings(operationSettingsState))
+  }
+
+  renderPaymentMethods()
+}
+
 const initConfig = async () => {
   if (!window.appConfig) {
     apiUrlState = DEFAULT_API_URL
@@ -117,6 +164,10 @@ const initConfig = async () => {
 
   apiUrlState = LEGACY_LOCAL_API_URLS.has(apiUrl) ? DEFAULT_API_URL : apiUrl
   configPathState = configPath
+
+  if (window.appConfig.getOperationSettings) {
+    operationSettingsState = mergeOperationSettings(await window.appConfig.getOperationSettings())
+  }
 }
 
 const getApiUrl = () => {
@@ -413,6 +464,22 @@ const getTicketTotal = () => {
   return getTicketItems().reduce((sum, item) => sum + item.total, 0)
 }
 
+const getPaymentFee = (subtotal, method = ticketPaymentMethod?.value) => {
+  const percent = Number(operationSettingsState.payments.cardFeePercent || 0)
+
+  if (String(method || '').toLowerCase() !== 'tarjeta' || percent <= 0) {
+    return 0
+  }
+
+  return subtotal * (percent / 100)
+}
+
+const getTicketChargeTotal = (method = ticketPaymentMethod?.value) => {
+  const subtotal = getTicketTotal()
+
+  return subtotal + getPaymentFee(subtotal, method)
+}
+
 const isWholesaleActive = (item) => {
   const cantidadMayoreo = Number(item.cantidadMayoreo || 0)
   const precioMayoreo = Number(item.precioMayoreo || 0)
@@ -434,6 +501,26 @@ const getWholesaleLabel = (item) => {
   }
 
   return ''
+}
+
+const renderPaymentMethods = () => {
+  if (!ticketPaymentMethod) {
+    return
+  }
+
+  const methods = operationSettingsState.payments.methods.length
+    ? operationSettingsState.payments.methods
+    : DEFAULT_OPERATION_SETTINGS.payments.methods
+  const selectedMethod = methods.includes(ticketPaymentMethod.value)
+    ? ticketPaymentMethod.value
+    : operationSettingsState.payments.defaultMethod
+  const defaultMethod = methods.includes(selectedMethod) ? selectedMethod : methods[0]
+
+  ticketPaymentMethod.innerHTML = methods
+    .map(method => `<option ${method === defaultMethod ? 'selected' : ''}>${escapeHtml(method)}</option>`)
+    .join('')
+
+  refreshCustomSelect(ticketPaymentMethod)
 }
 
 const syncTicketClientControls = () => {
@@ -598,18 +685,21 @@ const showAppDialog = ({
   })
 }
 
-const showTicketDialog = (title, content) => {
+const showTicketDialog = (title, content, options = {}) => {
   return new Promise((resolve) => {
     const dialog = document.createElement('div')
+    const logo = options.logo ?? operationSettingsState.printer.logo
+    const canPrint = options.canPrint !== false
     dialog.className = 'app-dialog show-modal'
     dialog.innerHTML = `
       <div class="app-dialog-content ticket-dialog">
         <h2>${escapeHtml(title)}</h2>
+        ${logo ? `<img class="ticket-logo" src="${escapeHtml(logo)}" alt="Logo del ticket">` : ''}
         <pre>${escapeHtml(content)}</pre>
         <div class="app-dialog-actions">
           <button class="dialog-btn secondary" type="button" data-dialog-action="cancel">Cerrar</button>
           <button class="dialog-btn whatsapp" type="button" data-dialog-action="whatsapp">WhatsApp</button>
-          <button class="dialog-btn primary" type="button" data-dialog-action="confirm">Imprimir</button>
+          ${canPrint ? '<button class="dialog-btn primary" type="button" data-dialog-action="confirm">Imprimir</button>' : ''}
         </div>
       </div>
     `
@@ -643,6 +733,10 @@ const showTicketDialog = (title, content) => {
     })
 
     document.body.appendChild(dialog)
+
+    if (canPrint && operationSettingsState.printer.autoPrint) {
+      window.print()
+    }
   })
 }
 
@@ -836,9 +930,9 @@ const buildVentaTicket = ({ id, metodoPago, items, total, tipo = 'TICKET DE COMP
   const ticketType = tipo === 'Venta' ? 'TICKET DE COMPRA' : tipo
 
   return [
-    'PALETERIA NOPALUCAN',
+    operationSettingsState.printer.header || 'PALETERIA NOPALUCAN',
     ticketType,
-    id ? `Folio ${formatTicketNumber(id)}` : 'Folio pendiente',
+    id ? `Folio ${formatTicketNumber(id)}` : '',
     concepto ? `Concepto: ${concepto}` : '',
     clienteNombre ? `Cliente: ${clienteNombre}` : '',
     clienteTelefono ? `Telefono: ${clienteTelefono}` : '',
@@ -848,9 +942,32 @@ const buildVentaTicket = ({ id, metodoPago, items, total, tipo = 'TICKET DE COMP
     'Productos:',
     ...items.map(item => `${item.cantidad} x ${item.nombre} ${money(item.total)}`),
     '',
+    Number(total || 0) !== items.reduce((sum, item) => sum + Number(item.total || 0), 0)
+      ? `Ajuste: ${money(Number(total || 0) - items.reduce((sum, item) => sum + Number(item.total || 0), 0))}`
+      : '',
     `Total: ${money(total)}`,
     '',
-    'Gracias por su compra.'
+    operationSettingsState.printer.footer || 'Gracias por su compra.'
+  ].filter(Boolean).join('\n')
+}
+
+const buildTicketPreview = ({ header, footer }) => {
+  return [
+    header || DEFAULT_OPERATION_SETTINGS.printer.header,
+    'TICKET DE COMPRA',
+    'Folio #0001',
+    'Cliente: Cliente de ejemplo',
+    'Telefono: 2481234567',
+    `Fecha: ${formatDateTime(new Date().toISOString())}`,
+    `Metodo: ${operationSettingsState.payments.defaultMethod || 'Efectivo'}`,
+    '',
+    'Productos:',
+    `2 x Boli leche ${money(20)}`,
+    `1 x Bote nuez ${money(210)}`,
+    '',
+    `Total: ${money(230)}`,
+    '',
+    footer || DEFAULT_OPERATION_SETTINGS.printer.footer
   ].filter(Boolean).join('\n')
 }
 
@@ -866,9 +983,10 @@ const renderTicket = () => {
     cartItemsContainer.innerHTML = ticketItems.map(renderTicketItem).join('')
   }
 
-  const total = ticketItems.reduce((sum, item) => {
+  const subtotal = ticketItems.reduce((sum, item) => {
     return sum + getWholesalePrice(item) * item.cantidad
   }, 0)
+  const total = subtotal + getPaymentFee(subtotal)
 
   cartTotal.innerText = money(total)
 }
@@ -1469,6 +1587,135 @@ const renderGastoModal = (gasto = null) => {
   `
 }
 
+const renderTicketSettingsModal = () => {
+  const printer = operationSettingsState.printer
+
+  modalTitle.innerText = 'Configurar ticket'
+  modalBody.innerHTML = `
+    <form data-operation-form="ticket">
+      <div class="form-group">
+        <label>Forma del ticket</label>
+        <select name="deliveryMode">
+          <option value="digital" ${printer.deliveryMode === 'digital' ? 'selected' : ''}>Digital</option>
+          <option value="printer" ${printer.deliveryMode === 'printer' ? 'selected' : ''}>Impresora</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Encabezado del ticket</label>
+        <textarea name="header" placeholder="Nombre del negocio">${escapeHtml(printer.header || '')}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Imagen superior del ticket</label>
+        <label class="image-upload">
+          <input id="ticket-logo-file" type="file" accept="image/*">
+          <span>Seleccionar imagen</span>
+        </label>
+        <input id="ticket-logo" name="logo" type="hidden" value="${escapeHtml(printer.logo || '')}">
+        <div class="image-preview ticket-logo-preview ${printer.logo ? 'has-image' : ''}" id="ticket-logo-preview">
+          ${printer.logo ? `<img src="${escapeHtml(printer.logo)}" alt="Logo del ticket">` : '<span>Sin imagen</span>'}
+        </div>
+        <button class="dialog-btn secondary ticket-logo-remove" type="button" id="remove-ticket-logo">Quitar imagen</button>
+      </div>
+
+      <div class="form-group">
+        <label>Pie del ticket</label>
+        <textarea name="footer" placeholder="Mensaje final">${escapeHtml(printer.footer || '')}</textarea>
+      </div>
+
+      <div class="settings-form-actions">
+        <button class="dialog-btn secondary" type="button" id="preview-ticket-settings">Vista previa</button>
+      </div>
+
+      <button class="save-btn" type="submit">Guardar ticket</button>
+    </form>
+  `
+}
+
+const renderPrinterSettingsModal = () => {
+  const printer = operationSettingsState.printer
+
+  modalTitle.innerText = 'Configurar impresora'
+  modalBody.innerHTML = `
+    <form data-operation-form="printer">
+      <div class="form-group">
+        <label>Impresora predeterminada</label>
+        <input name="name" type="text" placeholder="Nombre de la impresora" value="${escapeHtml(printer.name || '')}">
+      </div>
+
+      <div class="form-group">
+        <label>Ancho del ticket</label>
+        <select name="ticketWidth">
+          <option value="58" ${printer.ticketWidth === '58' ? 'selected' : ''}>58 mm</option>
+          <option value="80" ${printer.ticketWidth === '80' ? 'selected' : ''}>80 mm</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Copias</label>
+        <input name="copies" type="number" min="1" max="5" step="1" value="${escapeHtml(printer.copies || '1')}" required>
+      </div>
+
+      <label class="settings-toggle">
+        <input name="autoPrint" type="checkbox" ${printer.autoPrint ? 'checked' : ''}>
+        <span>Imprimir automaticamente al mostrar el ticket</span>
+      </label>
+
+      <button class="save-btn" type="submit">Guardar impresora</button>
+    </form>
+  `
+}
+
+const renderPaymentSettingsModal = () => {
+  const payments = operationSettingsState.payments
+
+  modalTitle.innerText = 'Configurar pagos'
+  modalBody.innerHTML = `
+    <form data-operation-form="payments">
+      <div class="form-group">
+        <label>Metodos disponibles</label>
+        <textarea name="methods" placeholder="Un metodo por linea" required>${escapeHtml(payments.methods.join('\n'))}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Metodo predeterminado</label>
+        <input name="defaultMethod" type="text" placeholder="Efectivo" value="${escapeHtml(payments.defaultMethod || 'Efectivo')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Comision tarjeta (%)</label>
+        <input name="cardFeePercent" type="number" min="0" max="100" step="0.01" value="${escapeHtml(payments.cardFeePercent || '0')}">
+      </div>
+
+      <label class="settings-toggle">
+        <input name="allowMixed" type="checkbox" ${payments.allowMixed ? 'checked' : ''}>
+        <span>Permitir pago mixto</span>
+      </label>
+
+      <button class="save-btn" type="submit">Guardar pagos</button>
+    </form>
+  `
+}
+
+const openOperationSettingsModal = (type) => {
+  modal.classList.add('show-modal')
+
+  if (type === 'ticket') {
+    renderTicketSettingsModal()
+  }
+
+  if (type === 'printer') {
+    renderPrinterSettingsModal()
+  }
+
+  if (type === 'payments') {
+    renderPaymentSettingsModal()
+  }
+
+  enhanceCustomSelects(modalBody)
+}
+
 const openModal = (type, record = null) => {
   modal.classList.add('show-modal')
 
@@ -1501,16 +1748,6 @@ const openModal = (type, record = null) => {
 
 buttons.forEach(button => {
   button.addEventListener('click', async () => {
-    if (button.dataset.section === 'configuracion') {
-      await showAppDialog({
-        title: 'Configuracion no disponible',
-        message: 'Esta seccion no esta disponible desde el menu principal.',
-        confirmText: 'Entendido',
-        showCancel: false
-      })
-      return
-    }
-
     buttons.forEach(btn => {
       btn.classList.remove('active')
     })
@@ -1530,6 +1767,12 @@ buttons.forEach(button => {
 document.querySelectorAll('.add-btn').forEach(button => {
   button.addEventListener('click', () => {
     openModal(button.dataset.type)
+  })
+})
+
+document.querySelectorAll('[data-operation-setting]').forEach(button => {
+  button.addEventListener('click', () => {
+    openOperationSettingsModal(button.dataset.operationSetting)
   })
 })
 
@@ -1676,6 +1919,7 @@ cartItemsContainer.addEventListener('input', (event) => {
 })
 
 ticketClientSelect?.addEventListener('change', syncTicketClientControls)
+ticketPaymentMethod?.addEventListener('change', renderTicket)
 
 chargeTicket.addEventListener('click', async () => {
   if (!ticketItems.length) {
@@ -1696,7 +1940,18 @@ chargeTicket.addEventListener('click', async () => {
   }
 
   const items = getTicketItems()
-  const total = getTicketTotal()
+  const total = getTicketChargeTotal(metodoPago)
+  const pendingVenta = {
+    id: null,
+    metodoPago,
+    tipo: 'Venta',
+    concepto: 'Venta de mostrador',
+    cliente,
+    telefono: cliente?.telefono || null,
+    items,
+    total
+  }
+  const ticket = buildVentaTicket(pendingVenta)
   const venta = await apiRequest('/api/ventas', {
     method: 'POST',
     body: JSON.stringify({
@@ -1707,11 +1962,16 @@ chargeTicket.addEventListener('click', async () => {
       clienteId: cliente?.id || null,
       cliente: cliente?.nombre || null,
       telefono: cliente?.telefono || null,
-      items
+      items,
+      ticket
     })
   })
 
-  await showTicketDialog('Ticket de compra', venta.ticket || buildVentaTicket(venta))
+  const isPrinterMode = operationSettingsState.printer.deliveryMode === 'printer'
+
+  await showTicketDialog('Ticket de compra', venta.ticket || ticket, {
+    canPrint: isPrinterMode
+  })
 
   ticketItems = []
   resetTicketClient()
@@ -1754,7 +2014,7 @@ modalBody.addEventListener('change', async (event) => {
     return
   }
 
-  if (event.target.id !== 'producto-imagen-file') {
+  if (!['producto-imagen-file', 'ticket-logo-file'].includes(event.target.id)) {
     return
   }
 
@@ -1765,12 +2025,51 @@ modalBody.addEventListener('change', async (event) => {
   }
 
   const dataUrl = await fileToDataUrl(file)
-  const imageInput = document.getElementById('producto-imagen')
-  const preview = document.getElementById('producto-imagen-preview')
+  const isTicketLogo = event.target.id === 'ticket-logo-file'
+  const imageInput = document.getElementById(isTicketLogo ? 'ticket-logo' : 'producto-imagen')
+  const preview = document.getElementById(isTicketLogo ? 'ticket-logo-preview' : 'producto-imagen-preview')
 
   imageInput.value = dataUrl
   preview.classList.add('has-image')
-  preview.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="Vista previa del producto">`
+  preview.innerHTML = `<img src="${escapeHtml(dataUrl)}" alt="${isTicketLogo ? 'Logo del ticket' : 'Vista previa del producto'}">`
+})
+
+modalBody.addEventListener('click', (event) => {
+  if (event.target.id === 'preview-ticket-settings') {
+    const form = event.target.closest('form')
+    const formData = new FormData(form)
+    const deliveryMode = formData.get('deliveryMode') === 'printer' ? 'printer' : 'digital'
+    const previewContent = buildTicketPreview({
+      header: formData.get('header')?.trim(),
+      footer: formData.get('footer')?.trim()
+    })
+
+    showTicketDialog(
+      deliveryMode === 'printer' ? 'Vista previa ticket impreso' : 'Vista previa ticket digital',
+      previewContent,
+      {
+        canPrint: deliveryMode === 'printer',
+        logo: formData.get('logo') || ''
+      }
+    )
+    return
+  }
+
+  if (event.target.id !== 'remove-ticket-logo') {
+    return
+  }
+
+  const imageInput = document.getElementById('ticket-logo')
+  const preview = document.getElementById('ticket-logo-preview')
+
+  if (imageInput) {
+    imageInput.value = ''
+  }
+
+  if (preview) {
+    preview.classList.remove('has-image')
+    preview.innerHTML = '<span>Sin imagen</span>'
+  }
 })
 
 modalBody.addEventListener('input', (event) => {
@@ -1795,6 +2094,60 @@ modalBody.addEventListener('submit', async (event) => {
   const form = event.target
   const formData = new FormData(form)
   const data = Object.fromEntries(formData.entries())
+  const operationForm = form.dataset.operationForm
+
+  if (operationForm === 'ticket') {
+    await saveOperationSettings({
+      printer: {
+        deliveryMode: data.deliveryMode === 'printer' ? 'printer' : 'digital',
+        header: data.header.trim() || DEFAULT_OPERATION_SETTINGS.printer.header,
+        footer: data.footer.trim() || DEFAULT_OPERATION_SETTINGS.printer.footer,
+        logo: data.logo || ''
+      }
+    })
+
+    closeCurrentModal()
+    return
+  }
+
+  if (operationForm === 'printer') {
+    await saveOperationSettings({
+      printer: {
+        name: data.name.trim(),
+        ticketWidth: data.ticketWidth,
+        copies: String(Math.max(1, Math.min(5, Math.floor(Number(data.copies) || 1)))),
+        autoPrint: formData.has('autoPrint')
+      }
+    })
+
+    closeCurrentModal()
+    return
+  }
+
+  if (operationForm === 'payments') {
+    const methods = data.methods
+      .split(/\r?\n/)
+      .map(method => method.trim())
+      .filter(Boolean)
+    const nextMethods = methods.length ? Array.from(new Set(methods)) : DEFAULT_OPERATION_SETTINGS.payments.methods
+    const defaultMethod = nextMethods.includes(data.defaultMethod.trim())
+      ? data.defaultMethod.trim()
+      : nextMethods[0]
+
+    await saveOperationSettings({
+      payments: {
+        methods: nextMethods,
+        defaultMethod,
+        cardFeePercent: String(Math.max(0, Number(data.cardFeePercent) || 0)),
+        allowMixed: formData.has('allowMixed')
+      }
+    })
+
+    closeCurrentModal()
+    renderTicket()
+    return
+  }
+
   const resource = form.dataset.resource
   const isEditing = Boolean(form.dataset.id)
   const config = resourceConfig[resource]
@@ -1841,9 +2194,10 @@ const boot = async () => {
     await applyTheme(await window.appConfig.getTheme(), { persist: false })
   }
 
+  await initConfig()
+  renderPaymentMethods()
   enhanceCustomSelects()
   syncTicketClientControls()
-  await initConfig()
   renderApiSettings()
   loadData()
 }

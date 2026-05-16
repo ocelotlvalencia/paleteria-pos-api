@@ -9,7 +9,9 @@ contextBridge.exposeInMainWorld('appConfig', {
   getConfigPath: () => ipcRenderer.invoke('config:get-path'),
   setApiUrl: (apiUrl) => ipcRenderer.invoke('config:set-api-url', apiUrl),
   getTheme: () => ipcRenderer.invoke('config:get-theme'),
-  setTheme: (theme) => ipcRenderer.invoke('config:set-theme', theme)
+  setTheme: (theme) => ipcRenderer.invoke('config:set-theme', theme),
+  getOperationSettings: () => ipcRenderer.invoke('config:get-operation-settings'),
+  setOperationSettings: (settings) => ipcRenderer.invoke('config:set-operation-settings', settings)
 })
 
 contextBridge.exposeInMainWorld('appShare', {

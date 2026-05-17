@@ -48,6 +48,41 @@ const hashPassword = (password) => {
 
 const normalizeCategoryName = (value) => String(value || '').trim()
 
+let categoriaProductoStoragePromise = null
+
+const ensureCategoriaProductoStorage = () => {
+  if (!categoriaProductoStoragePromise) {
+    categoriaProductoStoragePromise = (async () => {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CategoriaProducto" (
+          "id" SERIAL NOT NULL,
+          "nombre" TEXT NOT NULL,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "CategoriaProducto_pkey" PRIMARY KEY ("id")
+        )
+      `)
+
+      await prisma.$executeRawUnsafe(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "CategoriaProducto_nombre_key"
+        ON "CategoriaProducto"("nombre")
+      `)
+
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "CategoriaProducto" ("nombre")
+        SELECT DISTINCT TRIM("categoria")
+        FROM "Producto"
+        WHERE TRIM("categoria") <> ''
+        ON CONFLICT ("nombre") DO NOTHING
+      `)
+    })().catch(error => {
+      categoriaProductoStoragePromise = null
+      throw error
+    })
+  }
+
+  return categoriaProductoStoragePromise
+}
+
 const formatTicketNumber = (value) => {
   const ticketId = Math.max(0, Math.floor(Number(value) || 0))
 
@@ -197,6 +232,8 @@ app.delete('/api/productos/:id', asyncHandler(async (req, res) => {
 }))
 
 app.get('/api/categorias-productos', asyncHandler(async (req, res) => {
+  await ensureCategoriaProductoStorage()
+
   const categorias = await prisma.categoriaProducto.findMany({
     orderBy: { nombre: 'asc' }
   })
@@ -205,6 +242,8 @@ app.get('/api/categorias-productos', asyncHandler(async (req, res) => {
 }))
 
 app.post('/api/categorias-productos', asyncHandler(async (req, res) => {
+  await ensureCategoriaProductoStorage()
+
   const nombre = normalizeCategoryName(req.body.nombre)
 
   if (!nombre) {
@@ -222,6 +261,8 @@ app.post('/api/categorias-productos', asyncHandler(async (req, res) => {
 }))
 
 app.put('/api/categorias-productos/:id', asyncHandler(async (req, res) => {
+  await ensureCategoriaProductoStorage()
+
   const nombre = normalizeCategoryName(req.body.nombre)
 
   if (!nombre) {
@@ -242,6 +283,8 @@ app.put('/api/categorias-productos/:id', asyncHandler(async (req, res) => {
 }))
 
 app.delete('/api/categorias-productos/:id', asyncHandler(async (req, res) => {
+  await ensureCategoriaProductoStorage()
+
   await prisma.categoriaProducto.delete({
     where: {
       id: toNumber(req.params.id)

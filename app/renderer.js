@@ -1754,8 +1754,13 @@ const renderMateriaModal = (item = null) => {
       </div>
 
       <div class="form-group">
-        <label>Stock</label>
+        <label>Stock actual</label>
         <input name="stock" type="number" min="0" step="0.01" placeholder="0" value="${escapeHtml(item?.stock ?? '')}" required>
+      </div>
+
+      <div class="form-group">
+        <label>Descontar stock</label>
+        <input name="stockUsado" type="number" min="0" step="0.01" placeholder="0" value="">
       </div>
 
       <div class="form-group">
@@ -2827,6 +2832,14 @@ modalBody.addEventListener('submit', async (event) => {
 
     data.stock = String(stockActual + stockNuevo)
     delete data.stockNuevo
+  }
+
+  if (resource === 'materia') {
+    const stockActual = Math.max(0, Number(data.stock) || 0)
+    const stockUsado = Math.max(0, Number(data.stockUsado) || 0)
+
+    data.stock = String(Math.max(0, stockActual - stockUsado))
+    delete data.stockUsado
   }
 
   const savedRecord = await apiRequest(isEditing ? `${config.path}/${form.dataset.id}` : config.path, {

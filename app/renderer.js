@@ -54,11 +54,11 @@ const DEFAULT_OPERATION_SETTINGS = {
     defaultMethod: 'Efectivo',
     cardFeePercent: '0',
     allowMixed: false
-  },
-  productCategories: []
+  }
 }
 const USER_PERMISSION_OPTIONS = [
   { id: 'corte-caja', label: 'Corte de caja' },
+  { id: 'configuracion', label: 'Configuracion' },
   { id: 'configuracion.operacion', label: 'Configuracion: Operacion' },
   { id: 'configuracion.administracion', label: 'Configuracion: Administracion' },
   { id: 'configuracion.conexion', label: 'Configuracion: Conexion' }
@@ -76,6 +76,8 @@ const ADMIN_PERMISSION_BY_SETTING = {
   users: 'configuracion.administracion'
 }
 
+const CONFIGURATION_PERMISSION_PREFIX = 'configuracion'
+
 let productosState = []
 let materiaState = []
 let clientesState = []
@@ -87,8 +89,15 @@ let ticketItems = []
 let apiUrlState = DEFAULT_API_URL
 let configPathState = ''
 let operationSettingsState = JSON.parse(JSON.stringify(DEFAULT_OPERATION_SETTINGS))
+let productCategoriesState = []
 let usuariosState = []
 const authorizedPermissions = new Set()
+
+const clearConfigurationAccess = () => {
+  Array.from(authorizedPermissions)
+    .filter(permission => permission === CONFIGURATION_PERMISSION_PREFIX || permission.startsWith(`${CONFIGURATION_PERMISSION_PREFIX}.`))
+    .forEach(permission => authorizedPermissions.delete(permission))
+}
 
 const applyTheme = async (theme, options = {}) => {
   const normalizedTheme = theme === 'dark' ? 'dark' : 'light'
@@ -159,8 +168,7 @@ const mergeOperationSettings = (settings = {}) => {
       ...DEFAULT_OPERATION_SETTINGS.payments,
       ...(settings.payments || {}),
       methods
-    },
-    productCategories: normalizeProductCategories(settings.productCategories)
+    }
   }
 }
 
@@ -171,13 +179,14 @@ const normalizeProductCategories = (categories = []) => {
 
   return (Array.isArray(categories) ? categories : [])
     .map(category => {
-      const name = normalizeCategoryName(typeof category === 'string' ? category : category?.name)
+      const name = normalizeCategoryName(typeof category === 'string' ? category : category?.name || category?.nombre)
 
       if (!name) {
         return null
       }
 
       return {
+        id: category?.id,
         name
       }
     })
@@ -197,7 +206,7 @@ const normalizeProductCategories = (categories = []) => {
     })
 }
 
-const getProductCategories = () => normalizeProductCategories(operationSettingsState.productCategories)
+const getProductCategories = () => normalizeProductCategories(productCategoriesState)
 
 const saveOperationSettings = async (settings) => {
   operationSettingsState = mergeOperationSettings(settings)
@@ -1400,20 +1409,27 @@ const renderProveedores = (proveedores) => {
   `).join('')
 }
 
+const loadProductCategories = async () => {
+  productCategoriesState = await apiRequest('/api/categorias-productos')
+  return productCategoriesState
+}
+
 const loadData = async () => {
   try {
     await checkSystemStatus()
 
     const requests = await Promise.allSettled([
       apiRequest('/api/productos'),
+      loadProductCategories(),
       apiRequest('/api/materia-prima'),
       apiRequest('/api/clientes'),
       apiRequest('/api/proveedores'),
       apiRequest('/api/pedidos'),
       apiRequest('/api/ventas')
     ])
-    const [productosResult, materiaResult, clientesResult, proveedoresResult, pedidosResult, ventasResult] = requests
+    const [productosResult, categoriasResult, materiaResult, clientesResult, proveedoresResult, pedidosResult, ventasResult] = requests
     const productos = productosResult.status === 'fulfilled' ? productosResult.value : null
+    productCategoriesState = categoriasResult.status === 'fulfilled' ? categoriasResult.value : []
     const materiaPrima = materiaResult.status === 'fulfilled' ? materiaResult.value : null
     const clientes = clientesResult.status === 'fulfilled' ? clientesResult.value : null
     const proveedores = proveedoresResult.status === 'fulfilled' ? proveedoresResult.value : null
@@ -1945,9 +1961,6 @@ const renderPaymentSettingsModal = () => {
 
 const renderProductCategoriesSettingsModal = () => {
   const categories = getProductCategories()
-  const configuredCategoryNames = new Set(
-    operationSettingsState.productCategories.map(category => normalizeCategoryName(category.name).toLowerCase())
-  )
 
   modalTitle.innerText = 'Categorias de productos'
   modalBody.innerHTML = `
@@ -1956,13 +1969,12 @@ const renderProductCategoriesSettingsModal = () => {
         ${categories.length
           ? categories.map(category => `
               <article class="settings-category-item">
+                <input name="categoryId" type="hidden" value="${escapeHtml(category.id || '')}">
                 <div class="form-group">
                   <label>Categor&iacute;a</label>
                   <input name="categoryName" type="text" value="${escapeHtml(category.name)}" required>
                 </div>
-                ${configuredCategoryNames.has(category.name.toLowerCase())
-                  ? `<button class="icon-action-btn" type="button" data-category-action="delete" data-category-name="${escapeHtml(category.name)}" title="Eliminar categor&iacute;a" aria-label="Eliminar categor&iacute;a">&#128465;</button>`
-                  : ''}
+                <button class="icon-action-btn" type="button" data-category-action="delete" data-category-id="${escapeHtml(category.id || '')}" title="Eliminar categor&iacute;a" aria-label="Eliminar categor&iacute;a">&#128465;</button>
               </article>
             `).join('')
           : `
@@ -2123,10 +2135,28 @@ const openModal = (type, record = null) => {
 
 buttons.forEach(button => {
   button.addEventListener('click', async () => {
-    const permission = RESTRICTED_SECTIONS[button.dataset.section]
+    const currentSection = document.querySelector('.category.active')?.dataset.section || ''
+    const targetSection = button.dataset.section
+    const permission = RESTRICTED_SECTIONS[targetSection]
 
     if (permission && !(await requestPermissionAccess(permission))) {
       return
+    }
+
+    if (targetSection === 'configuracion' && currentSection !== 'configuracion') {
+      try {
+        await loadUsuarios()
+      } catch (error) {
+        usuariosState = []
+      }
+
+      if (usuariosState.length && !(await requestPermissionAccess(CONFIGURATION_PERMISSION_PREFIX))) {
+        return
+      }
+    }
+
+    if (currentSection === 'configuracion' && targetSection !== 'configuracion') {
+      clearConfigurationAccess()
     }
 
     buttons.forEach(btn => {
@@ -2458,17 +2488,17 @@ modalBody.addEventListener('click', (event) => {
   }
 
   if (categoryAction?.dataset.categoryAction === 'delete') {
-    const categoryName = normalizeCategoryName(categoryAction.dataset.categoryName)
-    const categories = getProductCategories()
-      .filter(category => category.name.toLowerCase() !== categoryName.toLowerCase())
+    const categoryId = categoryAction.dataset.categoryId
 
-    saveOperationSettings({
-      ...operationSettingsState,
-      productCategories: categories
-    }).then(() => {
-      renderProductCategoriesSettingsModal()
-      renderTicket()
-    })
+    if (categoryId) {
+      apiRequest(`/api/categorias-productos/${categoryId}`, {
+        method: 'DELETE'
+      }).then(async () => {
+        await loadProductCategories()
+        renderProductCategoriesSettingsModal()
+      })
+    }
+
     return
   }
 
@@ -2586,23 +2616,35 @@ modalBody.addEventListener('submit', async (event) => {
   }
 
   if (operationForm === 'productCategories') {
+    const ids = formData.getAll('categoryId')
     const names = formData.getAll('categoryName')
-    const categories = names.map(name => ({ name }))
+    const categories = names.map((name, index) => ({
+      id: ids[index],
+      name: normalizeCategoryName(name)
+    })).filter(category => category.name)
     const newCategoryName = normalizeCategoryName(data.newCategoryName)
 
-    if (newCategoryName) {
-      categories.push({
-        name: newCategoryName
+    await Promise.all(categories.map(category => {
+      return apiRequest(`/api/categorias-productos/${category.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          nombre: category.name
+        })
+      })
+    }))
+
+    if (newCategoryName && !categories.some(category => category.name.toLowerCase() === newCategoryName.toLowerCase())) {
+      await apiRequest('/api/categorias-productos', {
+        method: 'POST',
+        body: JSON.stringify({
+          nombre: newCategoryName
+        })
       })
     }
 
-    await saveOperationSettings({
-      ...operationSettingsState,
-      productCategories: normalizeProductCategories(categories)
-    })
+    await loadProductCategories()
 
     closeCurrentModal()
-    renderTicket()
     return
   }
 

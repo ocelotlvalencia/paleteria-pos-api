@@ -21,8 +21,7 @@ const DEFAULT_OPERATION_SETTINGS = {
     defaultMethod: 'Efectivo',
     cardFeePercent: '0',
     allowMixed: false
-  },
-  productCategories: []
+  }
 }
 const isProductionBuild = app.isPackaged
 
@@ -169,10 +168,7 @@ const readOperationSettingsFromConfig = () => {
       payments: {
         ...DEFAULT_OPERATION_SETTINGS.payments,
         ...(parsed.payments || {})
-      },
-      productCategories: Array.isArray(parsed.productCategories)
-        ? parsed.productCategories
-        : DEFAULT_OPERATION_SETTINGS.productCategories
+      }
     }
   } catch (error) {
     return DEFAULT_OPERATION_SETTINGS
@@ -189,10 +185,7 @@ const saveOperationSettingsToConfig = (settings) => {
     payments: {
       ...currentSettings.payments,
       ...(settings?.payments || {})
-    },
-    productCategories: Array.isArray(settings?.productCategories)
-      ? settings.productCategories
-      : currentSettings.productCategories
+    }
   }
 
   saveConfig({

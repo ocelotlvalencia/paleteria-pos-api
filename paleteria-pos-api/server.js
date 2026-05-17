@@ -46,6 +46,8 @@ const hashPassword = (password) => {
     .digest('hex')
 }
 
+const normalizeCategoryName = (value) => String(value || '').trim()
+
 const formatTicketNumber = (value) => {
   const ticketId = Math.max(0, Math.floor(Number(value) || 0))
 
@@ -186,6 +188,61 @@ app.put('/api/productos/:id', asyncHandler(async (req, res) => {
 
 app.delete('/api/productos/:id', asyncHandler(async (req, res) => {
   await prisma.producto.delete({
+    where: {
+      id: toNumber(req.params.id)
+    }
+  })
+
+  res.status(204).send()
+}))
+
+app.get('/api/categorias-productos', asyncHandler(async (req, res) => {
+  const categorias = await prisma.categoriaProducto.findMany({
+    orderBy: { nombre: 'asc' }
+  })
+
+  res.json(categorias)
+}))
+
+app.post('/api/categorias-productos', asyncHandler(async (req, res) => {
+  const nombre = normalizeCategoryName(req.body.nombre)
+
+  if (!nombre) {
+    res.status(400).json({ error: 'El nombre de la categoria es requerido' })
+    return
+  }
+
+  const categoria = await prisma.categoriaProducto.create({
+    data: {
+      nombre
+    }
+  })
+
+  res.status(201).json(categoria)
+}))
+
+app.put('/api/categorias-productos/:id', asyncHandler(async (req, res) => {
+  const nombre = normalizeCategoryName(req.body.nombre)
+
+  if (!nombre) {
+    res.status(400).json({ error: 'El nombre de la categoria es requerido' })
+    return
+  }
+
+  const categoria = await prisma.categoriaProducto.update({
+    where: {
+      id: toNumber(req.params.id)
+    },
+    data: {
+      nombre
+    }
+  })
+
+  res.json(categoria)
+}))
+
+app.delete('/api/categorias-productos/:id', asyncHandler(async (req, res) => {
+  await prisma.categoriaProducto.delete({
     where: {
       id: toNumber(req.params.id)
     }
@@ -474,7 +531,11 @@ app.post('/api/auth/verify', asyncHandler(async (req, res) => {
 
   const permisos = Array.isArray(usuario.permisos) ? usuario.permisos : []
 
-  if (permiso && !permisos.includes(permiso)) {
+  const hasPermission = permiso === 'configuracion'
+    ? permisos.some(item => item === 'configuracion' || String(item).startsWith('configuracion.'))
+    : permisos.includes(permiso)
+
+  if (permiso && !hasPermission) {
     res.status(403).json({ ok: false, error: 'No tienes permiso para acceder' })
     return
   }

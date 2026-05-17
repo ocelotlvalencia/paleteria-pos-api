@@ -25,11 +25,14 @@
 
       <div class="sidebar-header">
 
-        <img
-          src="./images/logo-paleteria.png"
-          alt="Logo"
-          class="logo"
-        >
+        <div class="logo-notification-wrapper" id="logo-notification-wrapper">
+          <img
+            src="./images/logo-paleteria.png"
+            alt="Logo"
+            class="logo"
+          >
+          <span class="logo-notification-badge hidden" id="logo-notification-badge">0</span>
+        </div>
 
         <div>
           <h2>Paleter&iacute;a</h2>
@@ -474,6 +477,11 @@
               <button class="setting-card setting-action-card" type="button" data-operation-setting="productCategories">
                 <h3><span class="card-icon">&#127991;</span> Categor&iacute;as</h3>
                 <p>Alta de categor&iacute;as para productos</p>
+              </button>
+
+              <button class="setting-card setting-action-card" type="button" data-operation-setting="notifications">
+                <h3><span class="card-icon">&#128276;</span> Notificaciones</h3>
+                <p>Avisos de stock bajo por categor&iacute;a</p>
               </button>
             </div>
           </section>

@@ -32,6 +32,8 @@ const ticketPaymentMethod = document.getElementById('ticket-payment-method')
 const chargeTicket = document.getElementById('charge-ticket')
 const cancelTicket = document.getElementById('cancel-ticket')
 const themeToggle = document.getElementById('theme-toggle')
+const logoNotificationWrapper = document.getElementById('logo-notification-wrapper')
+const logoNotificationBadge = document.getElementById('logo-notification-badge')
 
 const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
 const LEGACY_LOCAL_API_URLS = new Set([
@@ -60,6 +62,10 @@ const DEFAULT_OPERATION_SETTINGS = {
       bank: '',
       concept: ''
     }
+  },
+  notifications: {
+    defaultStockThreshold: '3',
+    stockThresholds: {}
   }
 }
 const USER_PERMISSION_OPTIONS = [
@@ -75,7 +81,8 @@ const OPERATION_PERMISSION_BY_SETTING = {
   ticket: 'configuracion.operacion',
   printer: 'configuracion.operacion',
   payments: 'configuracion.operacion',
-  productCategories: 'configuracion.operacion'
+  productCategories: 'configuracion.operacion',
+  notifications: 'configuracion.operacion'
 }
 const ADMIN_PERMISSION_BY_SETTING = {
   users: 'configuracion.administracion'
@@ -170,6 +177,12 @@ const mergeOperationSettings = (settings = {}) => {
   const methods = Array.isArray(settings.payments?.methods) && settings.payments.methods.length
     ? settings.payments.methods
     : DEFAULT_OPERATION_SETTINGS.payments.methods
+  const rawStockThresholds = settings.notifications?.stockThresholds || {}
+  const stockThresholds = Object.fromEntries(
+    Object.entries(rawStockThresholds)
+      .map(([category, value]) => [normalizeCategoryName(category), String(Math.max(0, Math.floor(Number(value) || 0)))])
+      .filter(([category]) => category)
+  )
 
   return {
     printer: {
@@ -184,6 +197,12 @@ const mergeOperationSettings = (settings = {}) => {
         ...DEFAULT_OPERATION_SETTINGS.payments.transferData,
         ...(settings.payments?.transferData || {})
       }
+    },
+    notifications: {
+      ...DEFAULT_OPERATION_SETTINGS.notifications,
+      ...(settings.notifications || {}),
+      defaultStockThreshold: String(Math.max(0, Math.floor(Number(settings.notifications?.defaultStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultStockThreshold) || 0))),
+      stockThresholds
     }
   }
 }
@@ -224,6 +243,43 @@ const normalizeProductCategories = (categories = []) => {
 
 const getProductCategories = () => normalizeProductCategories(productCategoriesState)
 
+const getNotificationCategories = () => {
+  return normalizeProductCategories([
+    ...getProductCategories(),
+    ...productosState.map(producto => producto.categoria || 'General')
+  ])
+}
+
+const getProductStockThreshold = (category) => {
+  const normalizedCategory = normalizeCategoryName(category || 'General')
+  const notifications = operationSettingsState.notifications || DEFAULT_OPERATION_SETTINGS.notifications
+  const thresholds = notifications.stockThresholds || {}
+  const configuredValue = thresholds[normalizedCategory]
+  const fallbackValue = notifications.defaultStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultStockThreshold
+
+  return Math.max(0, Math.floor(Number(configuredValue ?? fallbackValue) || 0))
+}
+
+const getLowStockProducts = () => {
+  return productosState.filter(producto => {
+    const threshold = getProductStockThreshold(producto.categoria)
+
+    return threshold > 0 && Number(producto.stock || 0) <= threshold
+  })
+}
+
+const updateProductStockNotifications = () => {
+  if (!logoNotificationWrapper || !logoNotificationBadge) {
+    return
+  }
+
+  const count = getLowStockProducts().length
+
+  logoNotificationWrapper.classList.toggle('has-notifications', count > 0)
+  logoNotificationBadge.classList.toggle('hidden', count === 0)
+  logoNotificationBadge.innerText = String(count)
+}
+
 const saveOperationSettings = async (settings) => {
   const nextSettings = {
     printer: {
@@ -237,6 +293,13 @@ const saveOperationSettings = async (settings) => {
         ...operationSettingsState.payments.transferData,
         ...(settings?.payments?.transferData || {})
       }
+    },
+    notifications: {
+      ...operationSettingsState.notifications,
+      ...(settings?.notifications || {}),
+      stockThresholds: Object.prototype.hasOwnProperty.call(settings?.notifications || {}, 'stockThresholds')
+        ? settings.notifications.stockThresholds
+        : operationSettingsState.notifications?.stockThresholds || {}
     }
   }
 
@@ -247,6 +310,7 @@ const saveOperationSettings = async (settings) => {
   }
 
   renderPaymentMethods()
+  updateProductStockNotifications()
 }
 
 const initConfig = async () => {
@@ -1437,6 +1501,7 @@ const syncTicketProducts = () => {
 const renderProductos = (productos) => {
   productosState = productos
   syncTicketProducts()
+  updateProductStockNotifications()
 
   if (!productos.length) {
     productsContainer.innerHTML = `
@@ -1451,7 +1516,7 @@ const renderProductos = (productos) => {
   }
 
   productsContainer.innerHTML = productos.map(producto => `
-    <article class="product-card" data-product-id="${escapeHtml(producto.id)}">
+    <article class="product-card ${getProductStockThreshold(producto.categoria) > 0 && Number(producto.stock || 0) <= getProductStockThreshold(producto.categoria) ? 'low-stock-row' : ''}" data-product-id="${escapeHtml(producto.id)}">
       <div class="product-image">
         ${producto.imagen
           ? `<img src="${escapeHtml(producto.imagen)}" alt="${escapeHtml(producto.nombre)}">`
@@ -2280,6 +2345,50 @@ const renderProductCategoriesSettingsModal = () => {
   `
 }
 
+const renderNotificationSettingsModal = () => {
+  const notifications = operationSettingsState.notifications || DEFAULT_OPERATION_SETTINGS.notifications
+  const categories = getNotificationCategories()
+
+  modalTitle.innerText = 'Configurar notificaciones'
+  modalBody.innerHTML = `
+    <form data-operation-form="notifications">
+      <div class="form-group">
+        <label>Limite general de stock bajo</label>
+        <input name="defaultStockThreshold" type="number" min="0" step="1" value="${escapeHtml(notifications.defaultStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultStockThreshold)}">
+        <small>Se usa si una categor&iacute;a no tiene un limite propio. Usa 0 para desactivar.</small>
+      </div>
+
+      <div class="settings-subsection">
+        <h3>Limites por categor&iacute;a</h3>
+        <div class="settings-category-list">
+          ${categories.length
+            ? categories.map(category => `
+                <article class="settings-category-item notification-threshold-item">
+                  <input name="notificationCategory" type="hidden" value="${escapeHtml(category.name)}">
+                  <div>
+                    <strong>${escapeHtml(category.name)}</strong>
+                    <small>${escapeHtml(productosState.filter(producto => normalizeCategoryName(producto.categoria || 'General').toLowerCase() === category.name.toLowerCase()).length)} productos</small>
+                  </div>
+                  <div class="form-group">
+                    <label>Avisar en</label>
+                    <input name="notificationThreshold" type="number" min="0" step="1" value="${escapeHtml(notifications.stockThresholds?.[category.name] ?? '')}" placeholder="${escapeHtml(notifications.defaultStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultStockThreshold)}">
+                  </div>
+                </article>
+              `).join('')
+            : `
+                <div class="empty-state">
+                  <h3>Sin categor&iacute;as</h3>
+                  <p>Agrega categor&iacute;as de productos para configurar sus avisos.</p>
+                </div>
+              `}
+        </div>
+      </div>
+
+      <button class="save-btn" type="submit">Guardar notificaciones</button>
+    </form>
+  `
+}
+
 const renderUserSettingsModal = () => {
   const users = usuariosState
 
@@ -2364,6 +2473,10 @@ const openOperationSettingsModal = (type) => {
 
   if (type === 'productCategories') {
     renderProductCategoriesSettingsModal()
+  }
+
+  if (type === 'notifications') {
+    renderNotificationSettingsModal()
   }
 
   enhanceCustomSelects(modalBody)
@@ -3129,6 +3242,31 @@ modalBody.addEventListener('submit', async (event) => {
     }
 
     await loadProductCategories()
+
+    closeCurrentModal()
+    return
+  }
+
+  if (operationForm === 'notifications') {
+    const categories = formData.getAll('notificationCategory')
+    const thresholds = formData.getAll('notificationThreshold')
+    const stockThresholds = categories.reduce((result, category, index) => {
+      const normalizedCategory = normalizeCategoryName(category)
+      const rawValue = thresholds[index]
+
+      if (normalizedCategory && rawValue !== '') {
+        result[normalizedCategory] = String(Math.max(0, Math.floor(Number(rawValue) || 0)))
+      }
+
+      return result
+    }, {})
+
+    await saveOperationSettings({
+      notifications: {
+        defaultStockThreshold: String(Math.max(0, Math.floor(Number(data.defaultStockThreshold) || 0))),
+        stockThresholds
+      }
+    })
 
     closeCurrentModal()
     return

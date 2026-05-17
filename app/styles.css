@@ -750,6 +750,35 @@ td {
   font-weight: 700;
 }
 
+.settings-category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.settings-category-item,
+.settings-category-new {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  background: rgba(0,0,0,0.035);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.settings-category-new {
+  grid-template-columns: 1fr;
+  align-items: end;
+}
+
+.settings-category-new h3 {
+  grid-column: 1 / -1;
+  color: #111827;
+  font-size: 18px;
+}
+
 .settings-toggle input {
   width: 18px;
   height: 18px;
@@ -1997,6 +2026,7 @@ body.dark-mode .app-dialog-content h2,
 body.dark-mode .empty-state h3,
 body.dark-mode .setting-card h3,
 body.dark-mode .settings-user-item h3,
+body.dark-mode .settings-category-new h3,
 body.dark-mode .settings-section-header h2 {
   color: #f9fafb;
 }
@@ -2026,6 +2056,8 @@ body.dark-mode .category:hover,
 body.dark-mode .sidebar-footer,
 body.dark-mode .cart-item,
 body.dark-mode .settings-user-item,
+body.dark-mode .settings-category-item,
+body.dark-mode .settings-category-new,
 body.dark-mode .product-image,
 body.dark-mode .image-preview,
 body.dark-mode .form-group input,

@@ -54,7 +54,8 @@ const DEFAULT_OPERATION_SETTINGS = {
     defaultMethod: 'Efectivo',
     cardFeePercent: '0',
     allowMixed: false
-  }
+  },
+  productCategories: []
 }
 const USER_PERMISSION_OPTIONS = [
   { id: 'corte-caja', label: 'Corte de caja' },
@@ -68,7 +69,8 @@ const RESTRICTED_SECTIONS = {
 const OPERATION_PERMISSION_BY_SETTING = {
   ticket: 'configuracion.operacion',
   printer: 'configuracion.operacion',
-  payments: 'configuracion.operacion'
+  payments: 'configuracion.operacion',
+  productCategories: 'configuracion.operacion'
 }
 const ADMIN_PERMISSION_BY_SETTING = {
   users: 'configuracion.administracion'
@@ -157,9 +159,45 @@ const mergeOperationSettings = (settings = {}) => {
       ...DEFAULT_OPERATION_SETTINGS.payments,
       ...(settings.payments || {}),
       methods
-    }
+    },
+    productCategories: normalizeProductCategories(settings.productCategories)
   }
 }
+
+const normalizeCategoryName = (category) => String(category || '').trim()
+
+const normalizeProductCategories = (categories = []) => {
+  const seen = new Set()
+
+  return (Array.isArray(categories) ? categories : [])
+    .map(category => {
+      const name = normalizeCategoryName(typeof category === 'string' ? category : category?.name)
+
+      if (!name) {
+        return null
+      }
+
+      return {
+        name
+      }
+    })
+    .filter(category => {
+      if (!category) {
+        return false
+      }
+
+      const key = category.name.toLowerCase()
+
+      if (seen.has(key)) {
+        return false
+      }
+
+      seen.add(key)
+      return true
+    })
+}
+
+const getProductCategories = () => normalizeProductCategories(operationSettingsState.productCategories)
 
 const saveOperationSettings = async (settings) => {
   operationSettingsState = mergeOperationSettings(settings)
@@ -522,8 +560,10 @@ const isPremiumTicketClient = () => {
 }
 
 const getCategoryQuantity = (category) => {
+  const normalizedCategory = normalizeCategoryName(category).toLowerCase()
+
   return ticketItems
-    .filter(item => item.categoria === category)
+    .filter(item => normalizeCategoryName(item.categoria).toLowerCase() === normalizedCategory)
     .reduce((sum, item) => sum + Number(item.cantidad || 0), 0)
 }
 
@@ -1480,6 +1520,13 @@ const renderApiSettings = () => {
 
 const renderProductModal = (producto = null) => {
   const isEditing = Boolean(producto)
+  const currentCategory = normalizeCategoryName(producto?.categoria || '')
+  const categoryOptions = getProductCategories()
+  const availableCategories = categoryOptions.length ? categoryOptions : [{ name: 'General' }]
+  const hasCurrentCategory = categoryOptions.some(category => category.name.toLowerCase() === currentCategory.toLowerCase())
+  const productCategoryOptions = currentCategory && !hasCurrentCategory
+    ? [{ name: currentCategory }, ...availableCategories]
+    : availableCategories
 
   modalTitle.innerText = isEditing ? 'Editar Producto' : 'Nuevo Producto'
   modalBody.innerHTML = `
@@ -1525,7 +1572,14 @@ const renderProductModal = (producto = null) => {
 
       <div class="form-group">
         <label>Categor&iacute;a</label>
-        <input name="categoria" type="text" placeholder="Ej. Paletas de agua" value="${escapeHtml(producto?.categoria || '')}" required>
+        <select name="categoria" required>
+          <option value="" disabled>Selecciona una categor&iacute;a</option>
+          ${productCategoryOptions.map(category => `
+            <option value="${escapeHtml(category.name)}" ${category.name.toLowerCase() === (currentCategory || 'General').toLowerCase() ? 'selected' : ''}>
+              ${escapeHtml(category.name)}
+            </option>
+          `).join('')}
+        </select>
       </div>
 
       <div class="form-group">
@@ -1889,6 +1943,49 @@ const renderPaymentSettingsModal = () => {
   `
 }
 
+const renderProductCategoriesSettingsModal = () => {
+  const categories = getProductCategories()
+  const configuredCategoryNames = new Set(
+    operationSettingsState.productCategories.map(category => normalizeCategoryName(category.name).toLowerCase())
+  )
+
+  modalTitle.innerText = 'Categorias de productos'
+  modalBody.innerHTML = `
+    <form data-operation-form="productCategories">
+      <div class="settings-category-list">
+        ${categories.length
+          ? categories.map(category => `
+              <article class="settings-category-item">
+                <div class="form-group">
+                  <label>Categor&iacute;a</label>
+                  <input name="categoryName" type="text" value="${escapeHtml(category.name)}" required>
+                </div>
+                ${configuredCategoryNames.has(category.name.toLowerCase())
+                  ? `<button class="icon-action-btn" type="button" data-category-action="delete" data-category-name="${escapeHtml(category.name)}" title="Eliminar categor&iacute;a" aria-label="Eliminar categor&iacute;a">&#128465;</button>`
+                  : ''}
+              </article>
+            `).join('')
+          : `
+              <div class="empty-state">
+                <h3>Sin categor&iacute;as</h3>
+                <p>Agrega categor&iacute;as para aplicarlas a tus productos.</p>
+              </div>
+            `}
+      </div>
+
+      <div class="settings-category-new">
+        <h3>Agregar categor&iacute;a</h3>
+        <div class="form-group">
+          <label>Nombre</label>
+          <input name="newCategoryName" type="text" placeholder="Ej. Paletas de agua">
+        </div>
+      </div>
+
+      <button class="save-btn" type="submit">Guardar categor&iacute;as</button>
+    </form>
+  `
+}
+
 const renderUserSettingsModal = () => {
   const users = usuariosState
 
@@ -1969,6 +2066,10 @@ const openOperationSettingsModal = (type) => {
 
   if (type === 'payments') {
     renderPaymentSettingsModal()
+  }
+
+  if (type === 'productCategories') {
+    renderProductCategoriesSettingsModal()
   }
 
   enhanceCustomSelects(modalBody)
@@ -2344,6 +2445,7 @@ modalBody.addEventListener('change', async (event) => {
 
 modalBody.addEventListener('click', (event) => {
   const userAction = event.target.closest('[data-user-action]')
+  const categoryAction = event.target.closest('[data-category-action]')
 
   if (userAction?.dataset.userAction === 'delete') {
     apiRequest(`/api/usuarios/${userAction.dataset.userId}`, {
@@ -2351,6 +2453,21 @@ modalBody.addEventListener('click', (event) => {
     }).then(async () => {
       await loadUsuarios()
       renderUserSettingsModal()
+    })
+    return
+  }
+
+  if (categoryAction?.dataset.categoryAction === 'delete') {
+    const categoryName = normalizeCategoryName(categoryAction.dataset.categoryName)
+    const categories = getProductCategories()
+      .filter(category => category.name.toLowerCase() !== categoryName.toLowerCase())
+
+    saveOperationSettings({
+      ...operationSettingsState,
+      productCategories: categories
+    }).then(() => {
+      renderProductCategoriesSettingsModal()
+      renderTicket()
     })
     return
   }
@@ -2461,6 +2578,27 @@ modalBody.addEventListener('submit', async (event) => {
         cardFeePercent: String(Math.max(0, Number(data.cardFeePercent) || 0)),
         allowMixed: formData.has('allowMixed')
       }
+    })
+
+    closeCurrentModal()
+    renderTicket()
+    return
+  }
+
+  if (operationForm === 'productCategories') {
+    const names = formData.getAll('categoryName')
+    const categories = names.map(name => ({ name }))
+    const newCategoryName = normalizeCategoryName(data.newCategoryName)
+
+    if (newCategoryName) {
+      categories.push({
+        name: newCategoryName
+      })
+    }
+
+    await saveOperationSettings({
+      ...operationSettingsState,
+      productCategories: normalizeProductCategories(categories)
     })
 
     closeCurrentModal()

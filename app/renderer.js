@@ -53,12 +53,17 @@ const DEFAULT_OPERATION_SETTINGS = {
     methods: ['Efectivo', 'Tarjeta'],
     defaultMethod: 'Efectivo',
     cardFeePercent: '0',
-    allowMixed: false
+    allowMixed: false,
+    transferData: {
+      clabe: '',
+      beneficiary: '',
+      bank: '',
+      concept: ''
+    }
   }
 }
 const USER_PERMISSION_OPTIONS = [
   { id: 'corte-caja', label: 'Corte de caja' },
-  { id: 'configuracion', label: 'Configuracion' },
   { id: 'configuracion.operacion', label: 'Configuracion: Operacion' },
   { id: 'configuracion.administracion', label: 'Configuracion: Administracion' },
   { id: 'configuracion.conexion', label: 'Configuracion: Conexion' }
@@ -95,7 +100,7 @@ const authorizedPermissions = new Set()
 
 const clearConfigurationAccess = () => {
   Array.from(authorizedPermissions)
-    .filter(permission => permission === CONFIGURATION_PERMISSION_PREFIX || permission.startsWith(`${CONFIGURATION_PERMISSION_PREFIX}.`))
+    .filter(permission => permission.startsWith(`${CONFIGURATION_PERMISSION_PREFIX}.`))
     .forEach(permission => authorizedPermissions.delete(permission))
 }
 
@@ -167,7 +172,11 @@ const mergeOperationSettings = (settings = {}) => {
     payments: {
       ...DEFAULT_OPERATION_SETTINGS.payments,
       ...(settings.payments || {}),
-      methods
+      methods,
+      transferData: {
+        ...DEFAULT_OPERATION_SETTINGS.payments.transferData,
+        ...(settings.payments?.transferData || {})
+      }
     }
   }
 }
@@ -209,7 +218,22 @@ const normalizeProductCategories = (categories = []) => {
 const getProductCategories = () => normalizeProductCategories(productCategoriesState)
 
 const saveOperationSettings = async (settings) => {
-  operationSettingsState = mergeOperationSettings(settings)
+  const nextSettings = {
+    printer: {
+      ...operationSettingsState.printer,
+      ...(settings?.printer || {})
+    },
+    payments: {
+      ...operationSettingsState.payments,
+      ...(settings?.payments || {}),
+      transferData: {
+        ...operationSettingsState.payments.transferData,
+        ...(settings?.payments?.transferData || {})
+      }
+    }
+  }
+
+  operationSettingsState = mergeOperationSettings(nextSettings)
 
   if (window.appConfig?.setOperationSettings) {
     operationSettingsState = mergeOperationSettings(await window.appConfig.setOperationSettings(operationSettingsState))
@@ -548,6 +572,15 @@ const getTicketChargeTotal = (method = ticketPaymentMethod?.value) => {
   return subtotal + getPaymentFee(subtotal, method)
 }
 
+const isTransferPaymentMethod = (method) => {
+  return String(method || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .includes('transferencia')
+}
+
 const getSelectedTicketClient = () => {
   const selectedClientId = ticketClientSelect?.value || ''
 
@@ -800,6 +833,52 @@ const showAppDialog = ({
 
     document.body.appendChild(dialog)
     dialog.querySelector('[data-dialog-action="confirm"]').focus()
+  })
+}
+
+const showTransferDataDialog = () => {
+  const transferData = operationSettingsState.payments.transferData || {}
+  const rows = [
+    ['Numero CLABE interbancaria', transferData.clabe],
+    ['Beneficiario', transferData.beneficiary],
+    ['Banco', transferData.bank],
+    ['Concepto', transferData.concept]
+  ]
+
+  return new Promise((resolve) => {
+    const dialog = document.createElement('div')
+
+    dialog.className = 'app-dialog show-modal'
+    dialog.innerHTML = `
+      <div class="app-dialog-content transfer-dialog">
+        <h2>Datos de transferencia</h2>
+        <div class="transfer-data-list">
+          ${rows.map(([label, value]) => `
+            <div class="transfer-data-row">
+              <span>${escapeHtml(label)}</span>
+              <strong>${escapeHtml(value || 'Sin configurar')}</strong>
+            </div>
+          `).join('')}
+        </div>
+        <div class="app-dialog-actions">
+          <button class="dialog-btn primary" type="button" data-dialog-action="close">Cerrar</button>
+        </div>
+      </div>
+    `
+
+    const closeDialog = () => {
+      dialog.remove()
+      resolve()
+    }
+
+    dialog.addEventListener('click', (event) => {
+      if (event.target.closest('[data-dialog-action="close"]') || event.target === dialog) {
+        closeDialog()
+      }
+    })
+
+    document.body.appendChild(dialog)
+    dialog.querySelector('[data-dialog-action="close"]').focus()
   })
 }
 
@@ -1930,6 +2009,7 @@ const renderPrinterSettingsModal = () => {
 
 const renderPaymentSettingsModal = () => {
   const payments = operationSettingsState.payments
+  const transferData = payments.transferData || DEFAULT_OPERATION_SETTINGS.payments.transferData
 
   modalTitle.innerText = 'Configurar pagos'
   modalBody.innerHTML = `
@@ -1953,6 +2033,29 @@ const renderPaymentSettingsModal = () => {
         <input name="allowMixed" type="checkbox" ${payments.allowMixed ? 'checked' : ''}>
         <span>Permitir pago mixto</span>
       </label>
+
+      <div class="settings-subsection">
+        <h3>Datos para transferencia</h3>
+        <div class="form-group">
+          <label>Numero CLABE interbancaria</label>
+          <input name="transferClabe" type="text" placeholder="Ej. 012345678901234567" value="${escapeHtml(transferData.clabe || '')}">
+        </div>
+
+        <div class="form-group">
+          <label>Beneficiario</label>
+          <input name="transferBeneficiary" type="text" placeholder="Nombre del beneficiario" value="${escapeHtml(transferData.beneficiary || '')}">
+        </div>
+
+        <div class="form-group">
+          <label>Banco</label>
+          <input name="transferBank" type="text" placeholder="Nombre del banco" value="${escapeHtml(transferData.bank || '')}">
+        </div>
+
+        <div class="form-group">
+          <label>Concepto</label>
+          <input name="transferConcept" type="text" placeholder="Concepto para el pago" value="${escapeHtml(transferData.concept || '')}">
+        </div>
+      </div>
 
       <button class="save-btn" type="submit">Guardar pagos</button>
     </form>
@@ -2141,18 +2244,6 @@ buttons.forEach(button => {
 
     if (permission && !(await requestPermissionAccess(permission))) {
       return
-    }
-
-    if (targetSection === 'configuracion' && currentSection !== 'configuracion') {
-      try {
-        await loadUsuarios()
-      } catch (error) {
-        usuariosState = []
-      }
-
-      if (usuariosState.length && !(await requestPermissionAccess(CONFIGURATION_PERMISSION_PREFIX))) {
-        return
-      }
     }
 
     if (currentSection === 'configuracion' && targetSection !== 'configuracion') {
@@ -2372,6 +2463,11 @@ chargeTicket.addEventListener('click', async () => {
   }
 
   const metodoPago = ticketPaymentMethod.value
+
+  if (isTransferPaymentMethod(metodoPago)) {
+    await showTransferDataDialog()
+  }
+
   const cliente = await resolveTicketClient()
 
   if (cliente === undefined) {
@@ -2606,7 +2702,13 @@ modalBody.addEventListener('submit', async (event) => {
         methods: nextMethods,
         defaultMethod,
         cardFeePercent: String(Math.max(0, Number(data.cardFeePercent) || 0)),
-        allowMixed: formData.has('allowMixed')
+        allowMixed: formData.has('allowMixed'),
+        transferData: {
+          clabe: data.transferClabe.trim(),
+          beneficiary: data.transferBeneficiary.trim(),
+          bank: data.transferBank.trim(),
+          concept: data.transferConcept.trim()
+        }
       }
     })
 

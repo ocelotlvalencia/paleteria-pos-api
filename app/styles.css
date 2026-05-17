@@ -1402,6 +1402,35 @@ td small {
   text-align: left;
 }
 
+.transfer-dialog {
+  text-align: left;
+}
+
+.transfer-data-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.transfer-data-row {
+  background: rgba(0,0,0,0.04);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.transfer-data-row span {
+  display: block;
+  color: #6b7280;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.transfer-data-row strong {
+  color: #111827;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
 .ticket-logo {
   display: block;
 
@@ -2019,6 +2048,7 @@ body.dark-mode .product-card h3,
 body.dark-mode td,
 body.dark-mode .cart-item h4,
 body.dark-mode .cart-item strong,
+body.dark-mode .transfer-data-row strong,
 body.dark-mode .summary-card strong,
 body.dark-mode .total-row.final,
 body.dark-mode .modal-header h2,
@@ -2041,6 +2071,7 @@ body.dark-mode .empty-state p,
 body.dark-mode .setting-card p,
 body.dark-mode .settings-user-item p,
 body.dark-mode .settings-user-item small,
+body.dark-mode .transfer-data-row span,
 body.dark-mode .settings-section-header span,
 body.dark-mode .locked-setting small,
 body.dark-mode td small,
@@ -2058,6 +2089,7 @@ body.dark-mode .cart-item,
 body.dark-mode .settings-user-item,
 body.dark-mode .settings-category-item,
 body.dark-mode .settings-category-new,
+body.dark-mode .transfer-data-row,
 body.dark-mode .product-image,
 body.dark-mode .image-preview,
 body.dark-mode .form-group input,

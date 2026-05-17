@@ -20,7 +20,13 @@ const DEFAULT_OPERATION_SETTINGS = {
     methods: ['Efectivo', 'Tarjeta'],
     defaultMethod: 'Efectivo',
     cardFeePercent: '0',
-    allowMixed: false
+    allowMixed: false,
+    transferData: {
+      clabe: '',
+      beneficiary: '',
+      bank: '',
+      concept: ''
+    }
   }
 }
 const isProductionBuild = app.isPackaged
@@ -167,7 +173,11 @@ const readOperationSettingsFromConfig = () => {
       },
       payments: {
         ...DEFAULT_OPERATION_SETTINGS.payments,
-        ...(parsed.payments || {})
+        ...(parsed.payments || {}),
+        transferData: {
+          ...DEFAULT_OPERATION_SETTINGS.payments.transferData,
+          ...(parsed.payments?.transferData || {})
+        }
       }
     }
   } catch (error) {
@@ -184,7 +194,11 @@ const saveOperationSettingsToConfig = (settings) => {
     },
     payments: {
       ...currentSettings.payments,
-      ...(settings?.payments || {})
+      ...(settings?.payments || {}),
+      transferData: {
+        ...currentSettings.payments.transferData,
+        ...(settings?.payments?.transferData || {})
+      }
     }
   }
 

@@ -2004,7 +2004,7 @@ const renderPedidoModal = (pedido = null) => {
               <input name="metodoAnticipo" type="hidden" value="${escapeHtml(pedido?.metodoAnticipo || '')}">
             `
           : `
-              <select name="metodoAnticipo">
+              <select id="pedido-metodo-anticipo" name="metodoAnticipo">
                 ${renderPaymentMethodOptions(pedido?.metodoAnticipo || '', { includeEmpty: true, emptyLabel: 'Sin anticipo' })}
               </select>
             `}
@@ -2758,6 +2758,14 @@ modalBody.addEventListener('change', async (event) => {
 
   if (event.target.id === 'pedido-cliente-categoria') {
     syncPedidoProductItems()
+    return
+  }
+
+  if (event.target.id === 'pedido-metodo-anticipo') {
+    if (isTransferPaymentMethod(event.target.value)) {
+      await showTransferDataDialog()
+    }
+
     return
   }
 

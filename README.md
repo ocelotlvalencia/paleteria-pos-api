@@ -1,278 +1,430 @@
 # Manual de usuario - Punto de Venta
 
-Este manual explica como usar la aplicacion **Punto de Venta** para administrar productos, clientes, pedidos, ventas, gastos, proveedores y tickets.
+Sistema de punto de venta para paleteria. Permite administrar productos, materia prima, clientes, pedidos, ventas, corte de caja, proveedores, tickets, pagos y configuraciones de operacion.
 
-## 1. Primer inicio
+## 1. Instalacion
 
-1. Abre el instalador `Punto de Venta Setup 1.0.0.exe`.
-2. Sigue los pasos de instalacion.
+1. Ejecuta el instalador:
+
+   ```text
+   Punto de Venta Setup 1.0.0.exe
+   ```
+
+2. Sigue el asistente de instalacion.
 3. Abre la aplicacion desde el acceso directo o desde el menu de inicio.
-4. Espera a que el indicador inferior del menu lateral muestre el estado del sistema.
+4. Verifica que el estado del sistema indique conexion correcta.
 
-El sistema usa una API en linea. Si aparece un mensaje de error al cargar datos, revisa tu conexion a internet o la configuracion de la API.
+La aplicacion usa la API en linea configurada en `paleteria-pos.config`. Si no cargan productos, ventas o clientes, revisa la conexion a internet y la URL de la API.
 
 ## 2. Pantalla principal
 
-La aplicacion se divide en tres zonas:
+La pantalla se divide en tres zonas:
 
-- **Menu lateral:** permite cambiar entre Productos, Materia Prima, Clientes, Pedidos, Ventas, Corte de caja, Proveedores y Configuracion.
-- **Area central:** muestra la seccion seleccionada y sus registros.
-- **Ticket:** aparece a la derecha y sirve para cobrar productos.
+- Menu lateral: permite entrar a Productos, Materia Prima, Clientes, Pedidos, Ventas, Corte de caja, Proveedores y Configuracion.
+- Area principal: muestra la seccion seleccionada.
+- Ticket: panel derecho para agregar productos y cobrar ventas.
 
-El boton de la luna en la parte superior del menu cambia entre modo claro y modo oscuro. La aplicacion recuerda el ultimo modo usado cuando la vuelves a abrir.
+El boton de luna cambia entre modo claro y modo oscuro. El sistema recuerda el ultimo tema usado.
 
 ## 3. Productos
 
-En **Productos** puedes registrar y administrar los productos que vendes.
+En Productos se registran los productos que se venden al cliente.
 
-Para agregar un producto:
+### Agregar producto
 
-1. Entra a **Productos**.
-2. Presiona **+ Nuevo producto**.
-3. Llena los datos:
+1. Entra a Productos.
+2. Presiona `+ Nuevo producto`.
+3. Captura:
    - Nombre del producto.
-   - Foto, si deseas agregar una imagen.
+   - Foto, si aplica.
    - Precio normal.
+   - Precio Premium, si aplica.
    - Precio mayoreo, si aplica.
-   - Cantidad para mayoreo, si aplica.
+   - Cantidad para mayoreo.
    - Categoria.
-   - Stock.
-4. Presiona **Guardar producto**.
+   - Stock actual.
+   - Agregar stock, si estas aumentando inventario.
+4. Presiona `Guardar producto`.
 
-Para editar o eliminar un producto, usa los botones de accion que aparecen en la tarjeta del producto.
+### Editar producto
 
-Para vender un producto, haz clic sobre su tarjeta. El producto se agregara al ticket.
+1. En la tarjeta del producto, presiona el boton de editar.
+2. Cambia los datos necesarios.
+3. Si quieres aumentar inventario, usa `Agregar stock`.
+4. Presiona `Guardar cambios`.
+
+### Eliminar producto
+
+1. En la tarjeta del producto, presiona eliminar.
+2. Confirma la accion.
+
+### Precio Premium, Plus y mayoreo
+
+El sistema ajusta precios automaticamente segun el cliente y la cantidad:
+
+- Cliente General: usa precio normal, excepto si alcanza mayoreo.
+- Cliente Premium: puede usar precio Premium si el producto lo tiene.
+- Cliente Plus: usa precio mayoreo desde 1 producto cuando el producto tiene precio mayoreo.
+- Mayoreo por categoria: si varios productos de la misma categoria alcanzan la cantidad configurada, se aplica precio mayoreo.
+
+El sistema usa el menor precio disponible entre normal, Premium y mayoreo.
 
 ## 4. Ticket y ventas
 
-El ticket se encuentra del lado derecho de la pantalla.
+El ticket esta en el lado derecho.
 
-Para cobrar una venta:
+### Cobrar venta
 
 1. Haz clic en los productos que deseas vender.
-2. Ajusta la cantidad con los botones `+` y `-`, o escribe la cantidad manualmente.
-3. Selecciona el metodo de pago: **Efectivo** o **Tarjeta**.
-4. Presiona **Cobrar**.
-5. El sistema guardara la venta y mostrara el ticket de compra.
+2. Ajusta cantidades con `+`, `-` o escribiendo la cantidad.
+3. Selecciona cliente:
+   - Sin cliente.
+   - Cliente registrado.
+   - Agregar cliente.
+4. Selecciona metodo de pago.
+5. Presiona `Cobrar`.
+6. El sistema guarda la venta y muestra el ticket.
 
-Para quitar un producto del ticket, usa el boton de eliminar en el producto dentro del ticket.
+### Transferencia
 
-Para limpiar el ticket completo:
+Si seleccionas un metodo que contenga la palabra `Transferencia`, el sistema muestra un modal con:
 
-1. Presiona **Cancelar**.
-2. Confirma que deseas limpiar el ticket.
+- Numero CLABE interbancaria.
+- Beneficiario.
+- Banco.
+- Concepto.
 
-Si intentas cobrar sin productos, el sistema mostrara una alerta indicando que debes agregar productos primero.
+El modal solo es informativo para compartir los datos al cliente.
+
+### Cancelar ticket
+
+Presiona `Cancelar` para limpiar el ticket actual. El sistema pide confirmacion.
 
 ## 5. Materia Prima
 
-En **Materia Prima** puedes controlar ingredientes e insumos.
+En Materia Prima se controlan ingredientes e insumos.
 
-Para agregar materia prima:
+### Agregar materia prima
 
-1. Entra a **Materia Prima**.
-2. Presiona **+ Nueva materia prima**.
-3. Captura nombre, stock, unidad, costo de compra y proveedor.
-4. Presiona **Guardar materia prima**.
+1. Entra a Materia Prima.
+2. Presiona `+ Nueva materia prima`.
+3. Captura:
+   - Nombre.
+   - Stock actual.
+   - Descontar stock, si estas usando inventario.
+   - Unidad.
+   - Costo de compra.
+   - Proveedor.
+4. Presiona `Guardar materia prima`.
 
-El costo de compra se registra automaticamente en **Corte de caja** como un gasto con categoria **Insumos**.
+### Unidades disponibles
 
-Si eliminas una materia prima, el gasto generado se conserva en **Corte de caja** como historial.
+- Litros.
+- Kilos.
+- Gramos.
+- Piezas.
 
-Las unidades disponibles son:
+### Descontar stock
 
-- Litros
-- Kilos
-- Piezas
+Cuando editas una materia prima puedes usar `Descontar stock`. El sistema resta esa cantidad al stock actual.
 
-Si un insumo tiene stock bajo, el sistema mostrara una alerta en la parte superior de la seccion.
+Ejemplo:
+
+```text
+Stock actual: 10 litros
+Descontar stock: 2 litros
+Stock final: 8 litros
+```
+
+### Stock bajo de materia prima
+
+La alerta aparece en la seccion Materia Prima. Los limites se configuran en:
+
+```text
+Configuracion > Operacion > Stock materia prima
+```
+
+Puedes definir limites por unidad. Ejemplo:
+
+```text
+Litros: 1
+Kilos: 3
+Gramos: 500
+Piezas: 5
+```
+
+Si una materia prima esta en una unidad con limite `1`, solo marcara stock bajo cuando su stock sea igual o menor a `1`.
 
 ## 6. Clientes
 
-En **Clientes** puedes registrar los datos de tus clientes.
+En Clientes se registran compradores frecuentes.
 
-Para agregar un cliente:
+### Agregar cliente
 
-1. Entra a **Clientes**.
-2. Presiona **+ Nuevo cliente**.
-3. Escribe el nombre y telefono.
-4. Presiona **Guardar cliente**.
+1. Entra a Clientes.
+2. Presiona `+ Nuevo cliente`.
+3. Captura:
+   - Nombre.
+   - Telefono.
+   - Categoria.
+4. Presiona `Guardar cliente`.
 
-Los clientes registrados pueden seleccionarse al crear pedidos.
+### Categorias de cliente
+
+- General.
+- Premium.
+- Plus.
+
+Estas categorias afectan el precio automatico en ticket y pedidos.
 
 ## 7. Pedidos
 
-En **Pedidos** puedes registrar pedidos apartados o entregas futuras.
+En Pedidos se registran apartados, encargos y entregas futuras.
 
-Para crear un pedido:
+### Crear pedido
 
-1. Entra a **Pedidos**.
-2. Presiona **+ Nuevo pedido**.
-3. Si el cliente ya esta registrado, seleccionalo en **Cliente registrado**.
-4. Captura o revisa:
-   - Cliente.
-   - Telefono.
-   - Detalle del pedido.
-   - Fecha de entrega.
-   - Total estimado.
-   - Anticipo.
-   - Metodo del anticipo.
-   - Metodo al entregar.
-   - Estado.
-5. Presiona **Guardar pedido**.
+1. Entra a Pedidos.
+2. Presiona `+ Nuevo pedido`.
+3. Selecciona un cliente registrado o elige `Agregar cliente`.
+4. Si agregas cliente, captura su categoria.
+5. Selecciona productos registrados y cantidad.
+6. Presiona `Agregar producto` para cada producto del pedido.
+7. Si el producto no esta registrado, puedes escribir el pedido manualmente.
+8. Captura fecha de entrega.
+9. Revisa total, anticipo, metodo de anticipo y metodo al entregar.
+10. Presiona `Guardar pedido`.
 
-Al guardar un pedido, la aplicacion muestra un ticket de pedido.
+### Precios automaticos en pedidos
 
-Estados disponibles:
+Los pedidos tambien ajustan precio por:
 
-- En preparacion.
-- Entregado.
-- Cancelado.
+- Cantidad.
+- Categoria del producto.
+- Cliente General, Premium o Plus.
+- Precio mayoreo y Premium configurado en productos.
 
-Cuando cambias el estado de un pedido, el sistema puede generar un ticket relacionado con el pedido.
+### Anticipo
+
+Si el pedido tiene anticipo mayor a `0`, el sistema lo registra como venta tipo anticipo. Despues de crearse esa venta, el monto del anticipo ya no se puede editar desde el pedido.
+
+Si el metodo de anticipo es Transferencia, se muestra el modal con los datos bancarios.
+
+### Estados
+
+Los pedidos pueden estar en:
+
+- En preparacion: amarillo.
+- Entregado: verde.
+- Cancelado: rojo.
+
+La opcion Cancelado aparece al editar un pedido existente. Si se cancela un pedido con anticipo, el sistema registra que se regreso el anticipo y quita ese monto de ventas.
 
 ## 8. Ventas
 
-En **Ventas** puedes consultar el historial de ventas cobradas.
+En Ventas se consulta el historial de cobros.
 
 La tabla muestra:
 
 - Fecha.
 - Metodo de pago.
-- Productos vendidos.
+- Productos o concepto.
 - Total.
 - Acciones.
 
-Desde las acciones puedes reimprimir o visualizar el ticket de una venta.
+Desde acciones puedes reimprimir o consultar el ticket de venta.
 
 ## 9. Corte de caja
 
-En **Corte de caja** puedes revisar el total vendido, los gastos registrados y el saldo resultante.
-
-La seccion muestra:
+En Corte de caja se revisa:
 
 - Total de ventas.
 - Total de gastos.
-- Saldo final.
+- Saldo.
 - Historial de gastos.
 
-Para registrar un gasto:
+### Registrar gasto
 
-1. Entra a **Corte de caja**.
-2. Presiona **+ Nuevo gasto**.
-3. Captura concepto, categoria, monto y notas opcionales.
-4. Presiona **Guardar gasto**.
+1. Entra a Corte de caja.
+2. Presiona `+ Nuevo gasto`.
+3. Captura concepto, categoria, monto y notas.
+4. Presiona `Guardar gasto`.
 
-Puedes editar o eliminar gastos desde los botones de accion en la tabla.
-
-El boton de resumen mensual muestra un modal con ventas, gastos y saldo agrupados por mes.
+El boton de calendario muestra el resumen mensual.
 
 ## 10. Proveedores
 
-En **Proveedores** puedes registrar a quienes abastecen materia prima.
+En Proveedores se registran quienes abastecen materia prima.
 
-Para agregar un proveedor:
+### Agregar proveedor
 
-1. Entra a **Proveedores**.
-2. Presiona **+ Nuevo proveedor**.
-3. Captura proveedor, contacto, telefono y descripcion.
-4. Presiona **Guardar proveedor**.
+1. Entra a Proveedores.
+2. Presiona `+ Nuevo proveedor`.
+3. Captura:
+   - Proveedor.
+   - Contacto.
+   - Telefono.
+   - Descripcion.
+4. Presiona `Guardar proveedor`.
 
-Los proveedores registrados aparecen como opcion al crear o editar materia prima.
+Los proveedores aparecen como opcion al crear o editar materia prima.
 
 ## 11. Configuracion
 
-La seccion **Configuracion** esta bloqueada desde la interfaz principal.
+La seccion Configuracion esta protegida por acceso. Si entras a una subseccion de Configuracion y luego cambias a otra seccion del menu principal, el acceso se cierra automaticamente.
 
-La URL de la API se guarda en el archivo de configuracion instalado:
+### Operacion
 
-```text
-paleteria-pos.config
-```
+Incluye:
 
-El archivo puede incluir:
+- Ticket.
+- Impresora.
+- Pagos.
+- Categorias.
+- Notificaciones.
+- Stock materia prima.
 
-```text
-API_URL=URL_DE_TU_API
-THEME=light
-```
+### Ticket
 
-Valores posibles para `THEME`:
+Permite configurar:
 
-- `light`
-- `dark`
+- Forma del ticket: digital o impresora.
+- Encabezado.
+- Imagen superior para ticket impreso.
+- Pie del ticket.
+- Vista previa.
 
-Normalmente no necesitas editar este archivo, porque el modo claro/oscuro se guarda automaticamente al cambiarlo desde la app.
+### Impresora
 
-## 12. Modo claro y modo oscuro
+Permite configurar:
 
-Para cambiar el tema:
+- Impresora predeterminada.
+- Ancho del ticket: 58 mm u 80 mm.
+- Numero de copias.
+- Impresion automatica.
 
-1. Presiona el boton de la luna en la parte superior izquierda.
-2. La app cambiara entre modo claro y oscuro.
-3. Al cerrar y abrir de nuevo, se conservara el ultimo modo usado.
+### Pagos
 
-## 13. Problemas comunes
+Permite configurar:
 
-### La app no carga productos o ventas
+- Metodos disponibles, uno por linea.
+- Metodo predeterminado.
+- Comision de tarjeta.
+- Pago mixto.
+- Datos para transferencia.
 
-Revisa:
+### Categorias de productos
 
-- Que tengas internet.
-- Que la API este activa.
-- Que la URL en `paleteria-pos.config` sea correcta.
+Permite dar de alta, editar y eliminar categorias. Estas categorias se seleccionan al crear o editar productos.
 
-### El ticket aparece vacio
+### Notificaciones de productos
 
-Agrega productos haciendo clic en las tarjetas de productos. Si no hay productos registrados, primero crea uno en la seccion **Productos**.
+Permite configurar alertas de stock bajo por categoria de producto.
 
-### No puedo cobrar
+Cuando hay productos en stock bajo:
 
-Verifica que:
+- El logo parpadea.
+- Se muestra una burbuja con el numero de notificaciones.
 
-- El ticket tenga al menos un producto.
-- La API este conectada.
-- El producto tenga datos correctos de precio.
+### Stock materia prima
 
-### No veo bien la aplicacion en modo oscuro
+Permite configurar alertas por unidad:
 
-Cambia el tema con el boton de la luna. Si el problema continua, cierra y abre la aplicacion para que cargue nuevamente el tema guardado.
+- Litros.
+- Kilos.
+- Gramos.
+- Piezas.
 
-## 14. Recomendaciones de uso
+La alerta se muestra en la seccion Materia Prima.
 
-- Registra primero proveedores y materia prima si quieres llevar control de insumos.
-- Registra productos antes de comenzar ventas.
-- Usa clientes registrados para pedidos frecuentes.
-- Registra los gastos en **Corte de caja** para conocer el saldo real.
-- Revisa la seccion **Ventas** al final del dia para consultar cobros realizados.
-- Manten actualizados los precios y el stock de productos.
+### Administracion
 
-## 15. Comandos para desarrollo
+Permite administrar usuarios y permisos.
 
-Esta seccion es solo para mantenimiento tecnico.
+Permisos disponibles:
 
-Ejecutar la aplicacion de escritorio:
+- Corte de caja.
+- Configuracion: Operacion.
+- Configuracion: Administracion.
+- Configuracion: Conexion.
+
+### Conexion
+
+Permite revisar o cambiar la URL de la API.
+
+## 12. Archivo paleteria-pos.config
+
+El archivo `paleteria-pos.config` guarda configuraciones locales del programa instalado, como:
+
+- URL de la API.
+- Tema claro u oscuro.
+- Configuracion de ticket.
+- Metodos de pago.
+- Datos de transferencia.
+- Notificaciones y limites de stock.
+
+En el `.exe`, este archivo se guarda localmente para cada instalacion. No se recomienda modificarlo manualmente salvo mantenimiento tecnico.
+
+## 13. Crear instalador
+
+Esta parte es para mantenimiento tecnico.
+
+Desde la carpeta `app` ejecuta:
 
 ```bash
-cd app
-npm install
-npm run dev
-```
-
-Crear instalador de Windows:
-
-```bash
-cd app
 npm run dist
 ```
 
-Ejecutar la API local:
+El instalador se genera en:
 
-```bash
-cd paleteria-pos-api
-npm install
-npm run dev
+```text
+app/dist/Punto de Venta Setup 1.0.0.exe
 ```
 
-La API necesita un archivo `.env` dentro de `paleteria-pos-api/`.
-Usa `paleteria-pos-api/.env.example` como base.
+## 14. Recomendaciones para el cliente
+
+- Registrar primero categorias de productos.
+- Registrar proveedores antes de materia prima.
+- Registrar productos antes de comenzar ventas.
+- Configurar metodos de pago y datos de transferencia.
+- Configurar limites de stock antes de operar.
+- Revisar Corte de caja al final de cada dia.
+- Usar pedidos para apartados o entregas futuras.
+
+## 15. Problemas comunes
+
+### No cargan datos
+
+Revisa:
+
+- Conexion a internet.
+- URL de la API.
+- Estado de la API.
+
+### No guarda configuracion
+
+En el `.exe` la configuracion se guarda localmente. Si se prueba desde navegador o Vercel, algunas configuraciones locales pueden no persistir igual que en el ejecutable.
+
+### El menu File / Edit / View / Window aparece
+
+El `.exe` actualizado ya lo oculta. Si aparece, instala la version mas reciente.
+
+### La transferencia no muestra datos
+
+Entra a:
+
+```text
+Configuracion > Operacion > Pagos
+```
+
+Y captura CLABE, beneficiario, banco y concepto.
+
+### El stock bajo no coincide
+
+Revisa los limites en:
+
+```text
+Configuracion > Operacion > Notificaciones
+Configuracion > Operacion > Stock materia prima
+```
+
+Recuerda que el aviso aparece cuando el stock es igual o menor al limite configurado.

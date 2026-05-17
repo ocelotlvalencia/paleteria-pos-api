@@ -299,6 +299,7 @@ const closeCustomSelects = (except = null) => {
   document.querySelectorAll('.custom-select.open').forEach(select => {
     if (select !== except) {
       select.classList.remove('open')
+      select.classList.remove('open-up')
     }
   })
 }
@@ -354,6 +355,15 @@ const enhanceCustomSelects = (root = document) => {
 
       closeCustomSelects(wrapper)
       wrapper.classList.toggle('open', shouldOpen)
+      wrapper.classList.remove('open-up')
+
+      if (shouldOpen) {
+        const rect = wrapper.getBoundingClientRect()
+        const spaceBelow = window.innerHeight - rect.bottom
+        const menuHeight = Math.min(menu.scrollHeight || 220, 220)
+
+        wrapper.classList.toggle('open-up', spaceBelow < menuHeight + 20)
+      }
     })
 
     select.addEventListener('change', syncValue)

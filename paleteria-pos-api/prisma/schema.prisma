@@ -173,6 +173,8 @@ model Pedido {
 
   entregaVentaId Int?
 
+  canceladoAt   DateTime?
+
   createdAt     DateTime @default(now())
 }
 

@@ -49,6 +49,7 @@ const hashPassword = (password) => {
 const normalizeCategoryName = (value) => String(value || '').trim()
 
 let categoriaProductoStoragePromise = null
+let pedidoCanceladoAtStoragePromise = null
 
 const ensureCategoriaProductoStorage = () => {
   if (!categoriaProductoStoragePromise) {
@@ -81,6 +82,20 @@ const ensureCategoriaProductoStorage = () => {
   }
 
   return categoriaProductoStoragePromise
+}
+
+const ensurePedidoCanceladoAtStorage = () => {
+  if (!pedidoCanceladoAtStoragePromise) {
+    pedidoCanceladoAtStoragePromise = prisma.$executeRawUnsafe(`
+      ALTER TABLE "Pedido"
+      ADD COLUMN IF NOT EXISTS "canceladoAt" TIMESTAMP(3)
+    `).catch(error => {
+      pedidoCanceladoAtStoragePromise = null
+      throw error
+    })
+  }
+
+  return pedidoCanceladoAtStoragePromise
 }
 
 const formatTicketNumber = (value) => {
@@ -122,6 +137,25 @@ const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [
     '',
     'Gracias.'
   ].filter(Boolean).join('\n')
+}
+
+const getPedidoCanceladoAt = (estado, previousCanceladoAt = null) => {
+  return estado === 'Cancelado' ? previousCanceladoAt || new Date() : null
+}
+
+const cleanupCanceledPedidos = async () => {
+  await ensurePedidoCanceladoAtStorage()
+
+  const expiresAt = new Date(Date.now() - 60 * 60 * 1000)
+
+  await prisma.pedido.deleteMany({
+    where: {
+      estado: 'Cancelado',
+      canceladoAt: {
+        lte: expiresAt
+      }
+    }
+  })
 }
 
 const createPedidoVenta = async ({ pedido, tipo, concepto, total, metodoPago }) => {
@@ -730,6 +764,8 @@ app.get('/api/corte-caja', asyncHandler(async (req, res) => {
 }))
 
 app.get('/api/pedidos', asyncHandler(async (req, res) => {
+  await cleanupCanceledPedidos()
+
   const pedidos = await prisma.pedido.findMany({
     orderBy: { fechaEntrega: 'asc' }
   })
@@ -738,20 +774,25 @@ app.get('/api/pedidos', asyncHandler(async (req, res) => {
 }))
 
 app.post('/api/pedidos', asyncHandler(async (req, res) => {
+  await ensurePedidoCanceladoAtStorage()
+
+  const estado = req.body.estado || 'En preparación'
+  const isCanceled = estado === 'Cancelado'
   let pedido = await prisma.pedido.create({
     data: {
       cliente: req.body.cliente,
       telefono: req.body.telefono || null,
       detalle: req.body.detalle,
       fechaEntrega: toDate(req.body.fechaEntrega),
-      estado: req.body.estado || 'En preparación',
+      estado,
       total: toNumber(req.body.total),
       anticipo: toNumber(req.body.anticipo),
-      metodoAnticipo: req.body.metodoAnticipo || null
+      metodoAnticipo: req.body.metodoAnticipo || null,
+      canceladoAt: getPedidoCanceladoAt(estado)
     }
   })
 
-  if (pedido.anticipo > 0) {
+  if (!isCanceled && pedido.anticipo > 0) {
     const venta = await createPedidoVenta({
       pedido,
       tipo: 'Anticipo',
@@ -766,7 +807,7 @@ app.post('/api/pedidos', asyncHandler(async (req, res) => {
     })
   }
 
-  if (pedido.estado === 'Entregado') {
+  if (!isCanceled && pedido.estado === 'Entregado') {
     const saldo = Math.max(Number(pedido.total || 0) - Number(pedido.anticipo || 0), 0)
     const venta = await createPedidoVenta({
       pedido,
@@ -786,12 +827,22 @@ app.post('/api/pedidos', asyncHandler(async (req, res) => {
 }))
 
 app.put('/api/pedidos/:id', asyncHandler(async (req, res) => {
+  await ensurePedidoCanceladoAtStorage()
+
   const previousPedido = await prisma.pedido.findUnique({
     where: {
       id: toNumber(req.params.id)
     }
   })
 
+  const estado = req.body.estado || 'En preparación'
+  const isCanceled = estado === 'Cancelado'
+  const anticipo = previousPedido?.anticipoVentaId
+    ? Number(previousPedido.anticipo || 0)
+    : toNumber(req.body.anticipo)
+  const metodoAnticipo = previousPedido?.anticipoVentaId
+    ? previousPedido.metodoAnticipo
+    : req.body.metodoAnticipo || null
   let pedido = await prisma.pedido.update({
     where: {
       id: toNumber(req.params.id)
@@ -801,12 +852,39 @@ app.put('/api/pedidos/:id', asyncHandler(async (req, res) => {
       telefono: req.body.telefono || null,
       detalle: req.body.detalle,
       fechaEntrega: toDate(req.body.fechaEntrega),
-      estado: req.body.estado || 'En preparación',
+      estado,
       total: toNumber(req.body.total),
-      anticipo: toNumber(req.body.anticipo),
-      metodoAnticipo: req.body.metodoAnticipo || null
+      anticipo,
+      metodoAnticipo,
+      canceladoAt: getPedidoCanceladoAt(estado, previousPedido?.canceladoAt)
     }
   })
+
+  if (isCanceled) {
+    const ventaIds = [previousPedido?.anticipoVentaId, previousPedido?.entregaVentaId]
+      .filter(Boolean)
+
+    if (ventaIds.length) {
+      await prisma.venta.deleteMany({
+        where: {
+          id: {
+            in: ventaIds
+          }
+        }
+      })
+
+      pedido = await prisma.pedido.update({
+        where: { id: pedido.id },
+        data: {
+          anticipoVentaId: null,
+          entregaVentaId: null
+        }
+      })
+    }
+
+    res.json(pedido)
+    return
+  }
 
   if (pedido.anticipo > 0 && !previousPedido?.anticipoVentaId) {
     const venta = await createPedidoVenta({
@@ -843,20 +921,51 @@ app.put('/api/pedidos/:id', asyncHandler(async (req, res) => {
 }))
 
 app.patch('/api/pedidos/:id/estado', asyncHandler(async (req, res) => {
+  await ensurePedidoCanceladoAtStorage()
+
   const previousPedido = await prisma.pedido.findUnique({
     where: {
       id: toNumber(req.params.id)
     }
   })
 
+  const estado = req.body.estado || 'En preparación'
+  const isCanceled = estado === 'Cancelado'
   let pedido = await prisma.pedido.update({
     where: {
       id: toNumber(req.params.id)
     },
     data: {
-      estado: req.body.estado || 'En preparación'
+      estado,
+      canceladoAt: getPedidoCanceladoAt(estado, previousPedido?.canceladoAt)
     }
   })
+
+  if (isCanceled) {
+    const ventaIds = [previousPedido?.anticipoVentaId, previousPedido?.entregaVentaId]
+      .filter(Boolean)
+
+    if (ventaIds.length) {
+      await prisma.venta.deleteMany({
+        where: {
+          id: {
+            in: ventaIds
+          }
+        }
+      })
+
+      pedido = await prisma.pedido.update({
+        where: { id: pedido.id },
+        data: {
+          anticipoVentaId: null,
+          entregaVentaId: null
+        }
+      })
+    }
+
+    res.json(pedido)
+    return
+  }
 
   if (pedido.estado === 'Entregado' && previousPedido?.estado !== 'Entregado' && !previousPedido?.entregaVentaId) {
     const saldo = Math.max(Number(pedido.total || 0) - Number(pedido.anticipo || 0), 0)

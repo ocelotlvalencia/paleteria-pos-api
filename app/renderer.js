@@ -598,6 +598,38 @@ const isTransferPaymentMethod = (method) => {
     .includes('transferencia')
 }
 
+const getPaymentMethods = () => {
+  return operationSettingsState.payments.methods.length
+    ? operationSettingsState.payments.methods
+    : DEFAULT_OPERATION_SETTINGS.payments.methods
+}
+
+const renderPaymentMethodOptions = (selected = '', options = {}) => {
+  const methods = getPaymentMethods()
+  const emptyOption = options.includeEmpty
+    ? `<option value="" ${!selected ? 'selected' : ''}>${escapeHtml(options.emptyLabel || 'Sin metodo')}</option>`
+    : ''
+
+  return [
+    emptyOption,
+    ...methods.map(method => `<option ${method === selected ? 'selected' : ''}>${escapeHtml(method)}</option>`)
+  ].join('')
+}
+
+const getPedidoStatusClass = (estado) => {
+  const normalizedStatus = String(estado || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+  if (normalizedStatus === 'entregado') {
+    return 'delivered'
+  }
+
+  if (normalizedStatus === 'cancelado') {
+    return 'cancelled'
+  }
+
+  return 'preparing'
+}
+
 const getSelectedTicketClient = () => {
   const selectedClientId = ticketClientSelect?.value || ''
 
@@ -682,9 +714,7 @@ const renderPaymentMethods = () => {
     return
   }
 
-  const methods = operationSettingsState.payments.methods.length
-    ? operationSettingsState.payments.methods
-    : DEFAULT_OPERATION_SETTINGS.payments.methods
+  const methods = getPaymentMethods()
   const selectedMethod = methods.includes(ticketPaymentMethod.value)
     ? ticketPaymentMethod.value
     : operationSettingsState.payments.defaultMethod
@@ -1076,8 +1106,7 @@ const showPedidoStatusDialog = (pedido) => {
           <div class="form-group">
             <label>M&eacute;todo al entregar</label>
             <select name="metodoEntrega">
-              <option>Efectivo</option>
-              <option>Tarjeta</option>
+              ${renderPaymentMethodOptions(operationSettingsState.payments.defaultMethod || 'Efectivo')}
             </select>
           </div>
           <div class="app-dialog-actions">
@@ -1439,7 +1468,7 @@ const renderPedidos = (pedidos) => {
   }
 
   pedidosContainer.innerHTML = pedidos.map(pedido => `
-    <tr>
+    <tr class="pedido-status-row ${getPedidoStatusClass(pedido.estado)}">
       <td>
         <strong>${escapeHtml(pedido.cliente)}</strong>
         <small>${escapeHtml(pedido.telefono || 'Sin telefono')}</small>
@@ -1451,7 +1480,7 @@ const renderPedidos = (pedidos) => {
         <small>Anticipo ${money(pedido.anticipo)}</small>
       </td>
       <td>
-        <button class="status-pill" type="button" data-action="status" data-resource="pedido" data-id="${escapeHtml(pedido.id)}">
+        <button class="status-pill ${getPedidoStatusClass(pedido.estado)}" type="button" data-action="status" data-resource="pedido" data-id="${escapeHtml(pedido.id)}">
           ${escapeHtml(pedido.estado)}
         </button>
       </td>
@@ -1823,12 +1852,18 @@ const renderClienteModal = (cliente = null) => {
 const renderPedidoModal = (pedido = null) => {
   const isEditing = Boolean(pedido)
   const clienteOptions = clientesState.map(cliente => `
-    <option value="${escapeHtml(cliente.id)}" data-nombre="${escapeHtml(cliente.nombre)}" data-telefono="${escapeHtml(cliente.telefono || '')}" ${cliente.nombre === pedido?.cliente ? 'selected' : ''}>
+    <option value="${escapeHtml(cliente.id)}" data-nombre="${escapeHtml(cliente.nombre)}" data-telefono="${escapeHtml(cliente.telefono || '')}" data-categoria="${escapeHtml(cliente.categoria || 'General')}" ${cliente.nombre === pedido?.cliente ? 'selected' : ''}>
       ${escapeHtml(cliente.nombre)}
+    </option>
+  `).join('')
+  const productOptions = productosState.map(producto => `
+    <option value="${escapeHtml(producto.id)}" data-nombre="${escapeHtml(producto.nombre)}" data-precio="${escapeHtml(producto.precio || 0)}">
+      ${escapeHtml(producto.nombre)}
     </option>
   `).join('')
   const anticipo = Number(pedido?.anticipo || 0)
   const saldo = Math.max(Number(pedido?.total || 0) - anticipo, 0)
+  const hasAnticipoVenta = Boolean(pedido?.anticipoVentaId)
 
   modalTitle.innerText = isEditing ? 'Editar Pedido' : 'Nuevo Pedido'
   modalBody.innerHTML = `
@@ -1837,9 +1872,15 @@ const renderPedidoModal = (pedido = null) => {
         <label>Cliente registrado</label>
         <select id="pedido-cliente-select">
           <option value="">Seleccionar cliente</option>
+          <option value="new">Agregar cliente</option>
           ${clienteOptions}
         </select>
       </div>
+
+      <label class="settings-toggle pedido-save-client">
+        <input name="guardarCliente" type="checkbox">
+        <span>Agregar cliente a clientes</span>
+      </label>
 
       <div class="form-group">
         <label>Cliente</label>
@@ -1849,6 +1890,28 @@ const renderPedidoModal = (pedido = null) => {
       <div class="form-group">
         <label>Tel&eacute;fono</label>
         <input id="pedido-telefono" name="telefono" type="text" placeholder="2481234567" value="${escapeHtml(pedido?.telefono || '')}">
+      </div>
+
+      <div class="form-group">
+        <label>Categor&iacute;a del cliente</label>
+        <select id="pedido-cliente-categoria" name="clienteCategoria">
+          <option ${!pedido || pedido?.clienteCategoria === 'General' ? 'selected' : ''}>General</option>
+          <option ${pedido?.clienteCategoria === 'Premium' ? 'selected' : ''}>Premium</option>
+          <option ${pedido?.clienteCategoria === 'Plus' ? 'selected' : ''}>Plus</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Producto registrado</label>
+        <select id="pedido-producto-select">
+          <option value="">Escribir pedido manualmente</option>
+          ${productOptions}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Cantidad</label>
+        <input id="pedido-producto-cantidad" name="productoCantidad" type="number" min="1" step="1" placeholder="1" value="1">
       </div>
 
       <div class="form-group">
@@ -1868,23 +1931,28 @@ const renderPedidoModal = (pedido = null) => {
 
       <div class="form-group">
         <label>Anticipo</label>
-        <input id="pedido-anticipo" name="anticipo" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(pedido?.anticipo ?? 0)}">
+        <input id="pedido-anticipo" name="anticipo" type="number" min="0" step="0.01" placeholder="$0.00" value="${escapeHtml(pedido?.anticipo ?? 0)}" ${hasAnticipoVenta ? 'readonly' : ''}>
+        ${hasAnticipoVenta ? '<small>Anticipo registrado en ventas. Si cancelas el pedido, se descuenta de ventas.</small>' : ''}
       </div>
 
       <div class="form-group">
         <label>M&eacute;todo del anticipo</label>
-        <select name="metodoAnticipo">
-          <option value="">Sin anticipo</option>
-          <option ${pedido?.metodoAnticipo === 'Efectivo' ? 'selected' : ''}>Efectivo</option>
-          <option ${pedido?.metodoAnticipo === 'Tarjeta' ? 'selected' : ''}>Tarjeta</option>
-        </select>
+        ${hasAnticipoVenta
+          ? `
+              <input type="text" value="${escapeHtml(pedido?.metodoAnticipo || 'Sin anticipo')}" readonly>
+              <input name="metodoAnticipo" type="hidden" value="${escapeHtml(pedido?.metodoAnticipo || '')}">
+            `
+          : `
+              <select name="metodoAnticipo">
+                ${renderPaymentMethodOptions(pedido?.metodoAnticipo || '', { includeEmpty: true, emptyLabel: 'Sin anticipo' })}
+              </select>
+            `}
       </div>
 
       <div class="form-group">
         <label>M&eacute;todo al entregar</label>
         <select name="metodoEntrega">
-          <option>Efectivo</option>
-          <option>Tarjeta</option>
+          ${renderPaymentMethodOptions(pedido?.metodoEntrega || operationSettingsState.payments.defaultMethod || 'Efectivo')}
         </select>
       </div>
 
@@ -1897,7 +1965,7 @@ const renderPedidoModal = (pedido = null) => {
         <select name="estado" required>
           <option ${!pedido || pedido?.estado === 'En preparación' || pedido?.estado === 'En preparacion' || pedido?.estado === 'Pendiente' ? 'selected' : ''}>En preparación</option>
           <option ${pedido?.estado === 'Entregado' ? 'selected' : ''}>Entregado</option>
-          <option ${pedido?.estado === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
+          ${isEditing ? `<option ${pedido?.estado === 'Cancelado' ? 'selected' : ''}>Cancelado</option>` : ''}
         </select>
       </div>
 
@@ -2595,10 +2663,49 @@ modalBody.addEventListener('change', async (event) => {
     const selectedOption = event.target.selectedOptions[0]
     const clienteInput = document.getElementById('pedido-cliente')
     const telefonoInput = document.getElementById('pedido-telefono')
+    const categoriaInput = document.getElementById('pedido-cliente-categoria')
+    const saveClientInput = event.target.closest('form')?.elements.guardarCliente
 
     if (selectedOption?.value && clienteInput && telefonoInput) {
-      clienteInput.value = selectedOption.dataset.nombre || ''
-      telefonoInput.value = selectedOption.dataset.telefono || ''
+      const isNewClient = selectedOption.value === 'new'
+
+      if (!isNewClient) {
+        clienteInput.value = selectedOption.dataset.nombre || ''
+        telefonoInput.value = selectedOption.dataset.telefono || ''
+        if (categoriaInput) {
+          categoriaInput.value = selectedOption.dataset.categoria || 'General'
+          refreshCustomSelect(categoriaInput)
+        }
+      } else {
+        clienteInput.value = ''
+        telefonoInput.value = ''
+        if (categoriaInput) {
+          categoriaInput.value = 'General'
+          refreshCustomSelect(categoriaInput)
+        }
+      }
+
+      if (saveClientInput) {
+        saveClientInput.checked = isNewClient
+      }
+    }
+
+    return
+  }
+
+  if (event.target.id === 'pedido-producto-select') {
+    const selectedOption = event.target.selectedOptions[0]
+    const detalleInput = document.querySelector('form[data-resource="pedido"] textarea[name="detalle"]')
+    const quantityInput = document.getElementById('pedido-producto-cantidad')
+    const totalInput = document.getElementById('pedido-total')
+
+    if (selectedOption?.value && detalleInput && totalInput) {
+      const quantity = Math.max(1, Math.floor(Number(quantityInput?.value) || 1))
+      const price = Number(selectedOption.dataset.precio || 0)
+
+      detalleInput.value = `${quantity} x ${selectedOption.dataset.nombre || selectedOption.textContent.trim()}`
+      totalInput.value = (price * quantity).toFixed(2)
+      updatePedidoSaldo()
     }
 
     return
@@ -2690,11 +2797,7 @@ modalBody.addEventListener('click', (event) => {
   }
 })
 
-modalBody.addEventListener('input', (event) => {
-  if (!['pedido-total', 'pedido-anticipo'].includes(event.target.id)) {
-    return
-  }
-
+const updatePedidoSaldo = () => {
   const totalInput = document.getElementById('pedido-total')
   const anticipoInput = document.getElementById('pedido-anticipo')
   const saldo = document.getElementById('pedido-saldo')
@@ -2704,6 +2807,24 @@ modalBody.addEventListener('input', (event) => {
   }
 
   saldo.innerText = money(Math.max(Number(totalInput.value || 0) - Number(anticipoInput.value || 0), 0))
+}
+
+modalBody.addEventListener('input', (event) => {
+  if (event.target.id === 'pedido-producto-cantidad') {
+    const productSelect = document.getElementById('pedido-producto-select')
+
+    if (productSelect?.value) {
+      productSelect.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+
+    return
+  }
+
+  if (!['pedido-total', 'pedido-anticipo'].includes(event.target.id)) {
+    return
+  }
+
+  updatePedidoSaldo()
 })
 
 modalBody.addEventListener('submit', async (event) => {
@@ -2840,6 +2961,27 @@ modalBody.addEventListener('submit', async (event) => {
 
     data.stock = String(Math.max(0, stockActual - stockUsado))
     delete data.stockUsado
+  }
+
+  if (resource === 'pedido') {
+    const shouldSaveClient = formData.has('guardarCliente')
+    const clientName = data.cliente.trim()
+    const clientExists = clientesState.some(cliente => cliente.nombre.trim().toLowerCase() === clientName.toLowerCase())
+
+    if (shouldSaveClient && clientName && !clientExists) {
+      await apiRequest('/api/clientes', {
+        method: 'POST',
+        body: JSON.stringify({
+          nombre: clientName,
+          telefono: data.telefono.trim(),
+          categoria: data.clienteCategoria || 'General'
+        })
+      })
+    }
+
+    delete data.guardarCliente
+    delete data.clienteCategoria
+    delete data.productoCantidad
   }
 
   const savedRecord = await apiRequest(isEditing ? `${config.path}/${form.dataset.id}` : config.path, {

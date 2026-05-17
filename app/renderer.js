@@ -262,11 +262,24 @@ const getNotificationCategories = () => {
   ])
 }
 
+const getConfiguredThreshold = (thresholds = {}, key = '') => {
+  const normalizedKey = normalizeCategoryName(key).toLowerCase()
+  const exactKey = normalizeCategoryName(key)
+
+  if (Object.prototype.hasOwnProperty.call(thresholds, exactKey)) {
+    return thresholds[exactKey]
+  }
+
+  const matchedKey = Object.keys(thresholds).find(item => normalizeCategoryName(item).toLowerCase() === normalizedKey)
+
+  return matchedKey ? thresholds[matchedKey] : undefined
+}
+
 const getProductStockThreshold = (category) => {
   const normalizedCategory = normalizeCategoryName(category || 'General')
   const notifications = operationSettingsState.notifications || DEFAULT_OPERATION_SETTINGS.notifications
   const thresholds = notifications.stockThresholds || {}
-  const configuredValue = thresholds[normalizedCategory]
+  const configuredValue = getConfiguredThreshold(thresholds, normalizedCategory)
   const fallbackValue = notifications.defaultStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultStockThreshold
 
   return Math.max(0, Math.floor(Number(configuredValue ?? fallbackValue) || 0))
@@ -291,7 +304,7 @@ const getRawMaterialStockThreshold = (unit) => {
   const normalizedUnit = normalizeCategoryName(unit || 'Piezas')
   const notifications = operationSettingsState.notifications || DEFAULT_OPERATION_SETTINGS.notifications
   const thresholds = notifications.rawMaterialStockThresholds || {}
-  const configuredValue = thresholds[normalizedUnit]
+  const configuredValue = getConfiguredThreshold(thresholds, normalizedUnit)
   const fallbackValue = notifications.defaultRawMaterialStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultRawMaterialStockThreshold
 
   return Math.max(0, Number(configuredValue ?? fallbackValue) || 0)

@@ -27,6 +27,12 @@ const DEFAULT_OPERATION_SETTINGS = {
       bank: '',
       concept: ''
     }
+  },
+  notifications: {
+    defaultStockThreshold: '3',
+    stockThresholds: {},
+    defaultRawMaterialStockThreshold: '3',
+    rawMaterialStockThresholds: {}
   }
 }
 const isProductionBuild = app.isPackaged
@@ -178,6 +184,18 @@ const readOperationSettingsFromConfig = () => {
           ...DEFAULT_OPERATION_SETTINGS.payments.transferData,
           ...(parsed.payments?.transferData || {})
         }
+      },
+      notifications: {
+        ...DEFAULT_OPERATION_SETTINGS.notifications,
+        ...(parsed.notifications || {}),
+        stockThresholds: {
+          ...DEFAULT_OPERATION_SETTINGS.notifications.stockThresholds,
+          ...(parsed.notifications?.stockThresholds || {})
+        },
+        rawMaterialStockThresholds: {
+          ...DEFAULT_OPERATION_SETTINGS.notifications.rawMaterialStockThresholds,
+          ...(parsed.notifications?.rawMaterialStockThresholds || {})
+        }
       }
     }
   } catch (error) {
@@ -199,6 +217,16 @@ const saveOperationSettingsToConfig = (settings) => {
         ...currentSettings.payments.transferData,
         ...(settings?.payments?.transferData || {})
       }
+    },
+    notifications: {
+      ...currentSettings.notifications,
+      ...(settings?.notifications || {}),
+      stockThresholds: Object.prototype.hasOwnProperty.call(settings?.notifications || {}, 'stockThresholds')
+        ? settings.notifications.stockThresholds
+        : currentSettings.notifications?.stockThresholds || {},
+      rawMaterialStockThresholds: Object.prototype.hasOwnProperty.call(settings?.notifications || {}, 'rawMaterialStockThresholds')
+        ? settings.notifications.rawMaterialStockThresholds
+        : currentSettings.notifications?.rawMaterialStockThresholds || {}
     }
   }
 

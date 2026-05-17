@@ -65,9 +65,12 @@ const DEFAULT_OPERATION_SETTINGS = {
   },
   notifications: {
     defaultStockThreshold: '3',
-    stockThresholds: {}
+    stockThresholds: {},
+    defaultRawMaterialStockThreshold: '3',
+    rawMaterialStockThresholds: {}
   }
 }
+const RAW_MATERIAL_UNITS = ['Litros', 'Kilos', 'Gramos', 'Piezas']
 const USER_PERMISSION_OPTIONS = [
   { id: 'corte-caja', label: 'Corte de caja' },
   { id: 'configuracion.operacion', label: 'Configuracion: Operacion' },
@@ -82,7 +85,8 @@ const OPERATION_PERMISSION_BY_SETTING = {
   printer: 'configuracion.operacion',
   payments: 'configuracion.operacion',
   productCategories: 'configuracion.operacion',
-  notifications: 'configuracion.operacion'
+  notifications: 'configuracion.operacion',
+  rawMaterialStock: 'configuracion.operacion'
 }
 const ADMIN_PERMISSION_BY_SETTING = {
   users: 'configuracion.administracion'
@@ -183,6 +187,12 @@ const mergeOperationSettings = (settings = {}) => {
       .map(([category, value]) => [normalizeCategoryName(category), String(Math.max(0, Math.floor(Number(value) || 0)))])
       .filter(([category]) => category)
   )
+  const rawMaterialStockThresholds = settings.notifications?.rawMaterialStockThresholds || {}
+  const materialStockThresholds = Object.fromEntries(
+    Object.entries(rawMaterialStockThresholds)
+      .map(([unit, value]) => [normalizeCategoryName(unit), String(Math.max(0, Number(value) || 0))])
+      .filter(([unit]) => unit)
+  )
 
   return {
     printer: {
@@ -202,7 +212,9 @@ const mergeOperationSettings = (settings = {}) => {
       ...DEFAULT_OPERATION_SETTINGS.notifications,
       ...(settings.notifications || {}),
       defaultStockThreshold: String(Math.max(0, Math.floor(Number(settings.notifications?.defaultStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultStockThreshold) || 0))),
-      stockThresholds
+      stockThresholds,
+      defaultRawMaterialStockThreshold: String(Math.max(0, Number(settings.notifications?.defaultRawMaterialStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultRawMaterialStockThreshold) || 0)),
+      rawMaterialStockThresholds: materialStockThresholds
     }
   }
 }
@@ -268,6 +280,31 @@ const getLowStockProducts = () => {
   })
 }
 
+const getRawMaterialUnits = () => {
+  return Array.from(new Set([
+    ...RAW_MATERIAL_UNITS,
+    ...materiaState.map(item => normalizeCategoryName(item.unidad)).filter(Boolean)
+  ]))
+}
+
+const getRawMaterialStockThreshold = (unit) => {
+  const normalizedUnit = normalizeCategoryName(unit || 'Piezas')
+  const notifications = operationSettingsState.notifications || DEFAULT_OPERATION_SETTINGS.notifications
+  const thresholds = notifications.rawMaterialStockThresholds || {}
+  const configuredValue = thresholds[normalizedUnit]
+  const fallbackValue = notifications.defaultRawMaterialStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultRawMaterialStockThreshold
+
+  return Math.max(0, Number(configuredValue ?? fallbackValue) || 0)
+}
+
+const getLowStockRawMaterials = (items = materiaState) => {
+  return items.filter(item => {
+    const threshold = getRawMaterialStockThreshold(item.unidad)
+
+    return threshold > 0 && Number(item.stock || 0) <= threshold
+  })
+}
+
 const updateProductStockNotifications = () => {
   if (!logoNotificationWrapper || !logoNotificationBadge) {
     return
@@ -299,7 +336,10 @@ const saveOperationSettings = async (settings) => {
       ...(settings?.notifications || {}),
       stockThresholds: Object.prototype.hasOwnProperty.call(settings?.notifications || {}, 'stockThresholds')
         ? settings.notifications.stockThresholds
-        : operationSettingsState.notifications?.stockThresholds || {}
+        : operationSettingsState.notifications?.stockThresholds || {},
+      rawMaterialStockThresholds: Object.prototype.hasOwnProperty.call(settings?.notifications || {}, 'rawMaterialStockThresholds')
+        ? settings.notifications.rawMaterialStockThresholds
+        : operationSettingsState.notifications?.rawMaterialStockThresholds || {}
     }
   }
 
@@ -1343,7 +1383,7 @@ const closeCurrentModal = () => {
 }
 
 const renderLowStockAlerts = (items) => {
-  const lowStockItems = items.filter(item => Number(item.stock) <= 3)
+  const lowStockItems = getLowStockRawMaterials(items)
 
   if (!lowStockItems.length) {
     stockAlerts.innerHTML = ''
@@ -1546,7 +1586,7 @@ const renderMateriaPrima = (items) => {
   }
 
   materiaContainer.innerHTML = items.map(item => `
-    <tr class="${Number(item.stock) <= 3 ? 'low-stock-row' : ''}">
+    <tr class="${getRawMaterialStockThreshold(item.unidad) > 0 && Number(item.stock || 0) <= getRawMaterialStockThreshold(item.unidad) ? 'low-stock-row' : ''}">
       <td>${escapeHtml(item.nombre)}</td>
       <td>${escapeHtml(item.stock)}</td>
       <td>${escapeHtml(item.unidad)}</td>
@@ -1912,9 +1952,7 @@ const renderMateriaModal = (item = null) => {
       <div class="form-group">
         <label>Unidad</label>
         <select name="unidad" required>
-          <option ${item?.unidad === 'Litros' ? 'selected' : ''}>Litros</option>
-          <option ${item?.unidad === 'Kilos' ? 'selected' : ''}>Kilos</option>
-          <option ${item?.unidad === 'Piezas' ? 'selected' : ''}>Piezas</option>
+          ${RAW_MATERIAL_UNITS.map(unit => `<option ${item?.unidad === unit ? 'selected' : ''}>${escapeHtml(unit)}</option>`).join('')}
         </select>
       </div>
 
@@ -2389,6 +2427,43 @@ const renderNotificationSettingsModal = () => {
   `
 }
 
+const renderRawMaterialStockSettingsModal = () => {
+  const notifications = operationSettingsState.notifications || DEFAULT_OPERATION_SETTINGS.notifications
+  const units = getRawMaterialUnits()
+
+  modalTitle.innerText = 'Stock materia prima'
+  modalBody.innerHTML = `
+    <form data-operation-form="rawMaterialStock">
+      <div class="form-group">
+        <label>Limite general de stock bajo</label>
+        <input name="defaultRawMaterialStockThreshold" type="number" min="0" step="0.01" value="${escapeHtml(notifications.defaultRawMaterialStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultRawMaterialStockThreshold)}">
+        <small>Se usa si una unidad no tiene un limite propio. Usa 0 para desactivar.</small>
+      </div>
+
+      <div class="settings-subsection">
+        <h3>Limites por unidad</h3>
+        <div class="settings-category-list">
+          ${units.map(unit => `
+            <article class="settings-category-item notification-threshold-item">
+              <input name="rawMaterialUnit" type="hidden" value="${escapeHtml(unit)}">
+              <div>
+                <strong>${escapeHtml(unit)}</strong>
+                <small>${escapeHtml(materiaState.filter(item => normalizeCategoryName(item.unidad).toLowerCase() === unit.toLowerCase()).length)} materias</small>
+              </div>
+              <div class="form-group">
+                <label>Avisar en</label>
+                <input name="rawMaterialThreshold" type="number" min="0" step="0.01" value="${escapeHtml(notifications.rawMaterialStockThresholds?.[unit] ?? '')}" placeholder="${escapeHtml(notifications.defaultRawMaterialStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultRawMaterialStockThreshold)}">
+              </div>
+            </article>
+          `).join('')}
+        </div>
+      </div>
+
+      <button class="save-btn" type="submit">Guardar stock materia prima</button>
+    </form>
+  `
+}
+
 const renderUserSettingsModal = () => {
   const users = usuariosState
 
@@ -2477,6 +2552,10 @@ const openOperationSettingsModal = (type) => {
 
   if (type === 'notifications') {
     renderNotificationSettingsModal()
+  }
+
+  if (type === 'rawMaterialStock') {
+    renderRawMaterialStockSettingsModal()
   }
 
   enhanceCustomSelects(modalBody)
@@ -3269,6 +3348,33 @@ modalBody.addEventListener('submit', async (event) => {
     })
 
     closeCurrentModal()
+    return
+  }
+
+  if (operationForm === 'rawMaterialStock') {
+    const units = formData.getAll('rawMaterialUnit')
+    const thresholds = formData.getAll('rawMaterialThreshold')
+    const rawMaterialStockThresholds = units.reduce((result, unit, index) => {
+      const normalizedUnit = normalizeCategoryName(unit)
+      const rawValue = thresholds[index]
+
+      if (normalizedUnit && rawValue !== '') {
+        result[normalizedUnit] = String(Math.max(0, Number(rawValue) || 0))
+      }
+
+      return result
+    }, {})
+
+    await saveOperationSettings({
+      notifications: {
+        defaultRawMaterialStockThreshold: String(Math.max(0, Number(data.defaultRawMaterialStockThreshold) || 0)),
+        rawMaterialStockThresholds
+      }
+    })
+
+    closeCurrentModal()
+    renderLowStockAlerts(materiaState)
+    renderMateriaPrima(materiaState)
     return
   }
 

@@ -1911,8 +1911,17 @@ const renderPedidoModal = (pedido = null) => {
 
       <div class="form-group">
         <label>Cantidad</label>
-        <input id="pedido-producto-cantidad" name="productoCantidad" type="number" min="1" step="1" placeholder="1" value="1">
+        <input id="pedido-producto-cantidad" type="number" min="1" step="1" placeholder="1" value="1">
       </div>
+
+      <div class="settings-form-actions pedido-product-actions">
+        <button class="dialog-btn secondary" type="button" id="add-pedido-producto">Agregar producto</button>
+      </div>
+
+      <div class="pedido-products-list" id="pedido-products-list"></div>
+
+      <input id="pedido-products-json" name="pedidoProductos" type="hidden" value="[]">
+      <input id="pedido-total-productos" type="hidden" value="0">
 
       <div class="form-group">
         <label>Pedido</label>
@@ -2694,20 +2703,6 @@ modalBody.addEventListener('change', async (event) => {
   }
 
   if (event.target.id === 'pedido-producto-select') {
-    const selectedOption = event.target.selectedOptions[0]
-    const detalleInput = document.querySelector('form[data-resource="pedido"] textarea[name="detalle"]')
-    const quantityInput = document.getElementById('pedido-producto-cantidad')
-    const totalInput = document.getElementById('pedido-total')
-
-    if (selectedOption?.value && detalleInput && totalInput) {
-      const quantity = Math.max(1, Math.floor(Number(quantityInput?.value) || 1))
-      const price = Number(selectedOption.dataset.precio || 0)
-
-      detalleInput.value = `${quantity} x ${selectedOption.dataset.nombre || selectedOption.textContent.trim()}`
-      totalInput.value = (price * quantity).toFixed(2)
-      updatePedidoSaldo()
-    }
-
     return
   }
 
@@ -2734,6 +2729,18 @@ modalBody.addEventListener('change', async (event) => {
 modalBody.addEventListener('click', (event) => {
   const userAction = event.target.closest('[data-user-action]')
   const categoryAction = event.target.closest('[data-category-action]')
+  const pedidoProductAction = event.target.closest('[data-pedido-product-action]')
+
+  if (event.target.id === 'add-pedido-producto') {
+    addPedidoProductItem()
+    return
+  }
+
+  if (pedidoProductAction?.dataset.pedidoProductAction === 'remove') {
+    pedidoProductAction.closest('.pedido-product-item')?.remove()
+    syncPedidoProductItems()
+    return
+  }
 
   if (userAction?.dataset.userAction === 'delete') {
     apiRequest(`/api/usuarios/${userAction.dataset.userId}`, {
@@ -2807,6 +2814,84 @@ const updatePedidoSaldo = () => {
   }
 
   saldo.innerText = money(Math.max(Number(totalInput.value || 0) - Number(anticipoInput.value || 0), 0))
+}
+
+const getPedidoProductItems = () => {
+  return Array.from(document.querySelectorAll('.pedido-product-item')).map(item => ({
+    id: item.dataset.productId,
+    nombre: item.dataset.productName,
+    cantidad: Number(item.dataset.quantity || 0),
+    precio: Number(item.dataset.price || 0)
+  }))
+}
+
+const syncPedidoProductItems = () => {
+  const items = getPedidoProductItems()
+  const detalleInput = document.querySelector('form[data-resource="pedido"] textarea[name="detalle"]')
+  const totalInput = document.getElementById('pedido-total')
+  const productsInput = document.getElementById('pedido-products-json')
+  const productsTotalInput = document.getElementById('pedido-total-productos')
+  const total = items.reduce((sum, item) => sum + (item.cantidad * item.precio), 0)
+
+  if (productsInput) {
+    productsInput.value = JSON.stringify(items)
+  }
+
+  if (productsTotalInput) {
+    productsTotalInput.value = String(total)
+  }
+
+  if (items.length && detalleInput) {
+    detalleInput.value = items
+      .map(item => `${item.cantidad} x ${item.nombre} - ${money(item.cantidad * item.precio)}`)
+      .join('\n')
+  }
+
+  if (items.length && totalInput) {
+    totalInput.value = total.toFixed(2)
+  }
+
+  updatePedidoSaldo()
+}
+
+const addPedidoProductItem = () => {
+  const productSelect = document.getElementById('pedido-producto-select')
+  const quantityInput = document.getElementById('pedido-producto-cantidad')
+  const list = document.getElementById('pedido-products-list')
+  const selectedOption = productSelect?.selectedOptions[0]
+
+  if (!selectedOption?.value || !list) {
+    return
+  }
+
+  const quantity = Math.max(1, Math.floor(Number(quantityInput?.value) || 1))
+  const productId = selectedOption.value
+  const productName = selectedOption.dataset.nombre || selectedOption.textContent.trim()
+  const productPrice = Number(selectedOption.dataset.precio || 0)
+  const existingItem = list.querySelector(`[data-product-id="${CSS.escape(productId)}"]`)
+
+  if (existingItem) {
+    existingItem.dataset.quantity = String(Number(existingItem.dataset.quantity || 0) + quantity)
+    existingItem.querySelector('[data-pedido-product-quantity]').textContent = existingItem.dataset.quantity
+    existingItem.querySelector('[data-pedido-product-total]').textContent = money(Number(existingItem.dataset.quantity) * productPrice)
+  } else {
+    list.insertAdjacentHTML('beforeend', `
+      <article class="pedido-product-item" data-product-id="${escapeHtml(productId)}" data-product-name="${escapeHtml(productName)}" data-quantity="${escapeHtml(quantity)}" data-price="${escapeHtml(productPrice)}">
+        <div>
+          <strong>${escapeHtml(productName)}</strong>
+          <small><span data-pedido-product-quantity>${escapeHtml(quantity)}</span> x ${money(productPrice)}</small>
+        </div>
+        <span data-pedido-product-total>${money(quantity * productPrice)}</span>
+        <button class="icon-action-btn" type="button" data-pedido-product-action="remove" title="Quitar producto" aria-label="Quitar producto">&#128465;</button>
+      </article>
+    `)
+  }
+
+  if (quantityInput) {
+    quantityInput.value = '1'
+  }
+
+  syncPedidoProductItems()
 }
 
 modalBody.addEventListener('input', (event) => {
@@ -2981,7 +3066,7 @@ modalBody.addEventListener('submit', async (event) => {
 
     delete data.guardarCliente
     delete data.clienteCategoria
-    delete data.productoCantidad
+    delete data.pedidoProductos
   }
 
   const savedRecord = await apiRequest(isEditing ? `${config.path}/${form.dataset.id}` : config.path, {

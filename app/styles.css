@@ -1963,6 +1963,36 @@ td small {
   color: #047857;
 }
 
+.pedido-product-actions {
+  margin: -4px 0 12px;
+}
+
+.pedido-products-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.pedido-product-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  background: rgba(0,0,0,0.04);
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.pedido-product-item strong,
+.pedido-product-item small {
+  display: block;
+}
+
+.pedido-product-item small {
+  margin-top: 3px;
+  color: #6b7280;
+}
+
 @media print {
   body * {
     visibility: hidden;
@@ -2132,6 +2162,7 @@ body.dark-mode .empty-state p,
 body.dark-mode .setting-card p,
 body.dark-mode .settings-user-item p,
 body.dark-mode .settings-user-item small,
+body.dark-mode .pedido-product-item small,
 body.dark-mode .transfer-data-row span,
 body.dark-mode .settings-section-header span,
 body.dark-mode .locked-setting small,
@@ -2150,6 +2181,7 @@ body.dark-mode .cart-item,
 body.dark-mode .settings-user-item,
 body.dark-mode .settings-category-item,
 body.dark-mode .settings-category-new,
+body.dark-mode .pedido-product-item,
 body.dark-mode .transfer-data-row,
 body.dark-mode .product-image,
 body.dark-mode .image-preview,

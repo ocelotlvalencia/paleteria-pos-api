@@ -2422,7 +2422,7 @@ const renderNotificationSettingsModal = () => {
                   </div>
                   <div class="form-group">
                     <label>Avisar en</label>
-                    <input name="notificationThreshold" type="number" min="0" step="1" value="${escapeHtml(notifications.stockThresholds?.[category.name] ?? '')}" placeholder="${escapeHtml(notifications.defaultStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultStockThreshold)}">
+                    <input name="notificationThreshold" type="number" min="0" step="1" value="${escapeHtml(getProductStockThreshold(category.name))}">
                   </div>
                 </article>
               `).join('')
@@ -2465,7 +2465,7 @@ const renderRawMaterialStockSettingsModal = () => {
               </div>
               <div class="form-group">
                 <label>Avisar en</label>
-                <input name="rawMaterialThreshold" type="number" min="0" step="0.01" value="${escapeHtml(notifications.rawMaterialStockThresholds?.[unit] ?? '')}" placeholder="${escapeHtml(notifications.defaultRawMaterialStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultRawMaterialStockThreshold)}">
+                <input name="rawMaterialThreshold" type="number" min="0" step="0.01" value="${escapeHtml(getRawMaterialStockThreshold(unit))}">
               </div>
             </article>
           `).join('')}
@@ -3346,7 +3346,7 @@ modalBody.addEventListener('submit', async (event) => {
       const normalizedCategory = normalizeCategoryName(category)
       const rawValue = thresholds[index]
 
-      if (normalizedCategory && rawValue !== '') {
+      if (normalizedCategory) {
         result[normalizedCategory] = String(Math.max(0, Math.floor(Number(rawValue) || 0)))
       }
 
@@ -3371,7 +3371,7 @@ modalBody.addEventListener('submit', async (event) => {
       const normalizedUnit = normalizeCategoryName(unit)
       const rawValue = thresholds[index]
 
-      if (normalizedUnit && rawValue !== '') {
+      if (normalizedUnit) {
         result[normalizedUnit] = String(Math.max(0, Number(rawValue) || 0))
       }
 

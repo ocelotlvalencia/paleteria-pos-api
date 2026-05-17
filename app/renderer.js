@@ -96,6 +96,7 @@ let configPathState = ''
 let operationSettingsState = JSON.parse(JSON.stringify(DEFAULT_OPERATION_SETTINGS))
 let productCategoriesState = []
 let usuariosState = []
+let transferDataShownForCurrentSelection = false
 const authorizedPermissions = new Set()
 
 const clearConfigurationAccess = () => {
@@ -591,14 +592,26 @@ const getSelectedTicketClient = () => {
   return clientesState.find(cliente => String(cliente.id) === String(selectedClientId)) || null
 }
 
-const isPremiumTicketClient = () => {
+const getTicketClientCategory = () => {
   const selectedClient = getSelectedTicketClient()
 
   if (selectedClient) {
-    return selectedClient.categoria === 'Premium'
+    return selectedClient.categoria || 'General'
   }
 
-  return ticketClientSelect?.value === 'new' && ticketClientCategory?.value === 'Premium'
+  if (ticketClientSelect?.value === 'new') {
+    return ticketClientCategory?.value || 'General'
+  }
+
+  return 'General'
+}
+
+const isPremiumTicketClient = () => {
+  return getTicketClientCategory() === 'Premium'
+}
+
+const isPlusTicketClient = () => {
+  return getTicketClientCategory() === 'Plus'
 }
 
 const getCategoryQuantity = (category) => {
@@ -614,7 +627,7 @@ const isWholesaleActive = (item) => {
   const precioMayoreo = Number(item.precioMayoreo || 0)
   const categoryQuantity = getCategoryQuantity(item.categoria)
 
-  return cantidadMayoreo > 0 && precioMayoreo > 0 && categoryQuantity >= cantidadMayoreo
+  return precioMayoreo > 0 && (isPlusTicketClient() || (cantidadMayoreo > 0 && categoryQuantity >= cantidadMayoreo))
 }
 
 const getTicketUnitPrice = (item) => {
@@ -638,7 +651,7 @@ const getWholesaleLabel = (item) => {
   const labels = []
 
   if (isWholesaleActive(item)) {
-    labels.push(`Mayoreo categoria desde ${cantidadMayoreo} pzas`)
+    labels.push(isPlusTicketClient() ? 'Cliente Plus: mayoreo' : `Mayoreo categoria desde ${cantidadMayoreo} pzas`)
   }
 
   if (isPremiumTicketClient() && Number(item.precioPremium || 0) > 0) {
@@ -685,7 +698,7 @@ const renderTicketClientOptions = () => {
     <option value="">Sin cliente</option>
     ${clientesState.map(cliente => `
       <option value="${escapeHtml(cliente.id)}" ${String(cliente.id) === selectedClientId ? 'selected' : ''}>
-        ${escapeHtml(cliente.nombre)}${cliente.categoria === 'Premium' ? ' · Premium' : ''}${cliente.telefono ? ` - ${escapeHtml(cliente.telefono)}` : ''}
+        ${escapeHtml(cliente.nombre)}${cliente.categoria && cliente.categoria !== 'General' ? ` · ${escapeHtml(cliente.categoria)}` : ''}${cliente.telefono ? ` - ${escapeHtml(cliente.telefono)}` : ''}
       </option>
     `).join('')}
     <option value="new" ${selectedClientId === 'new' ? 'selected' : ''}>Agregar cliente</option>
@@ -880,6 +893,20 @@ const showTransferDataDialog = () => {
     document.body.appendChild(dialog)
     dialog.querySelector('[data-dialog-action="close"]').focus()
   })
+}
+
+const showTransferDataIfNeeded = async () => {
+  if (!isTransferPaymentMethod(ticketPaymentMethod?.value)) {
+    transferDataShownForCurrentSelection = false
+    return
+  }
+
+  if (transferDataShownForCurrentSelection) {
+    return
+  }
+
+  transferDataShownForCurrentSelection = true
+  await showTransferDataDialog()
 }
 
 const requestPermissionAccess = (permission) => {
@@ -1762,6 +1789,7 @@ const renderClienteModal = (cliente = null) => {
         <select name="categoria">
           <option ${!cliente || cliente?.categoria === 'General' ? 'selected' : ''}>General</option>
           <option ${cliente?.categoria === 'Premium' ? 'selected' : ''}>Premium</option>
+          <option ${cliente?.categoria === 'Plus' ? 'selected' : ''}>Plus</option>
         </select>
       </div>
 
@@ -2449,7 +2477,11 @@ ticketClientSelect?.addEventListener('change', () => {
   renderTicket()
 })
 ticketClientCategory?.addEventListener('change', renderTicket)
-ticketPaymentMethod?.addEventListener('change', renderTicket)
+ticketPaymentMethod?.addEventListener('change', async () => {
+  transferDataShownForCurrentSelection = false
+  renderTicket()
+  await showTransferDataIfNeeded()
+})
 
 chargeTicket.addEventListener('click', async () => {
   if (!ticketItems.length) {
@@ -2464,9 +2496,7 @@ chargeTicket.addEventListener('click', async () => {
 
   const metodoPago = ticketPaymentMethod.value
 
-  if (isTransferPaymentMethod(metodoPago)) {
-    await showTransferDataDialog()
-  }
+  await showTransferDataIfNeeded()
 
   const cliente = await resolveTicketClient()
 
@@ -2509,6 +2539,7 @@ chargeTicket.addEventListener('click', async () => {
   })
 
   ticketItems = []
+  transferDataShownForCurrentSelection = false
   resetTicketClient()
   renderTicket()
   loadData()
@@ -2531,6 +2562,7 @@ cancelTicket.addEventListener('click', async () => {
   }
 
   ticketItems = []
+  transferDataShownForCurrentSelection = false
   resetTicketClient()
   renderTicket()
 })

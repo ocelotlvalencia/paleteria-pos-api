@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron')
 const fs = require('fs')
 const path = require('path')
 
@@ -239,6 +239,7 @@ const saveOperationSettingsToConfig = (settings) => {
 
 const createWindow = () => {
   ensureConfigFile()
+  Menu.setApplicationMenu(null)
 
   mainWindow = new BrowserWindow({
     width: 1280,

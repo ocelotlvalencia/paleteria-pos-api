@@ -1187,6 +1187,7 @@ const renderActionButtons = (resource, id) => {
 
 const closeCurrentModal = () => {
   modal.classList.remove('show-modal')
+  delete modal.dataset.modalType
   modalBody.innerHTML = ''
 }
 
@@ -2246,6 +2247,7 @@ const openAdminSettingsModal = async (type) => {
 
 const openModal = (type, record = null) => {
   modal.classList.add('show-modal')
+  modal.dataset.modalType = type
 
   if (type === 'producto') {
     renderProductModal(record)

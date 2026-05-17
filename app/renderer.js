@@ -630,6 +630,58 @@ const getPedidoStatusClass = (estado) => {
   return 'preparing'
 }
 
+const getPedidoClientCategory = () => {
+  const selectedClientOption = document.getElementById('pedido-cliente-select')?.selectedOptions[0]
+  const selectedClientCategory = selectedClientOption?.dataset.categoria
+
+  if (selectedClientOption?.value && selectedClientOption.value !== 'new' && selectedClientCategory) {
+    return selectedClientCategory
+  }
+
+  return document.getElementById('pedido-cliente-categoria')?.value || 'General'
+}
+
+const isPremiumPedidoClient = () => {
+  return getPedidoClientCategory() === 'Premium'
+}
+
+const isPlusPedidoClient = () => {
+  return getPedidoClientCategory() === 'Plus'
+}
+
+const getPedidoProductUnitPrice = (product, categoryQuantity) => {
+  const prices = [Number(product.precio || 0)]
+  const premiumPrice = Number(product.precioPremium || 0)
+  const wholesalePrice = Number(product.precioMayoreo || 0)
+  const wholesaleQuantity = Number(product.cantidadMayoreo || 0)
+
+  if (isPremiumPedidoClient() && premiumPrice > 0) {
+    prices.push(premiumPrice)
+  }
+
+  if (wholesalePrice > 0 && (isPlusPedidoClient() || (wholesaleQuantity > 0 && categoryQuantity >= wholesaleQuantity))) {
+    prices.push(wholesalePrice)
+  }
+
+  return Math.min(...prices)
+}
+
+const getPedidoPriceLabel = (product, categoryQuantity) => {
+  const labels = []
+  const wholesalePrice = Number(product.precioMayoreo || 0)
+  const wholesaleQuantity = Number(product.cantidadMayoreo || 0)
+
+  if (wholesalePrice > 0 && (isPlusPedidoClient() || (wholesaleQuantity > 0 && categoryQuantity >= wholesaleQuantity))) {
+    labels.push(isPlusPedidoClient() ? 'Cliente Plus: mayoreo' : `Mayoreo categoria desde ${wholesaleQuantity} pzas`)
+  }
+
+  if (isPremiumPedidoClient() && Number(product.precioPremium || 0) > 0) {
+    labels.push('Cliente premium')
+  }
+
+  return labels.join(' - ')
+}
+
 const getSelectedTicketClient = () => {
   const selectedClientId = ticketClientSelect?.value || ''
 
@@ -1857,7 +1909,7 @@ const renderPedidoModal = (pedido = null) => {
     </option>
   `).join('')
   const productOptions = productosState.map(producto => `
-    <option value="${escapeHtml(producto.id)}" data-nombre="${escapeHtml(producto.nombre)}" data-precio="${escapeHtml(producto.precio || 0)}">
+    <option value="${escapeHtml(producto.id)}" data-nombre="${escapeHtml(producto.nombre)}">
       ${escapeHtml(producto.nombre)}
     </option>
   `).join('')
@@ -2697,8 +2749,15 @@ modalBody.addEventListener('change', async (event) => {
       if (saveClientInput) {
         saveClientInput.checked = isNewClient
       }
+
+      syncPedidoProductItems()
     }
 
+    return
+  }
+
+  if (event.target.id === 'pedido-cliente-categoria') {
+    syncPedidoProductItems()
     return
   }
 
@@ -2817,12 +2876,51 @@ const updatePedidoSaldo = () => {
 }
 
 const getPedidoProductItems = () => {
-  return Array.from(document.querySelectorAll('.pedido-product-item')).map(item => ({
-    id: item.dataset.productId,
-    nombre: item.dataset.productName,
-    cantidad: Number(item.dataset.quantity || 0),
-    precio: Number(item.dataset.price || 0)
-  }))
+  const rawItems = Array.from(document.querySelectorAll('.pedido-product-item')).map(item => {
+    const product = productosState.find(producto => String(producto.id) === String(item.dataset.productId))
+
+    return {
+      id: item.dataset.productId,
+      nombre: item.dataset.productName,
+      cantidad: Number(item.dataset.quantity || 0),
+      precio: Number(item.dataset.price || 0),
+      product
+    }
+  })
+
+  const categoryQuantities = rawItems.reduce((totals, item) => {
+    if (!item.product) {
+      return totals
+    }
+
+    const category = normalizeCategoryName(item.product.categoria || '')
+    totals[category] = (totals[category] || 0) + item.cantidad
+    return totals
+  }, {})
+
+  return rawItems.map(item => {
+    if (!item.product) {
+      return {
+        id: item.id,
+        nombre: item.nombre,
+        cantidad: item.cantidad,
+        precio: item.precio,
+        etiquetaPrecio: ''
+      }
+    }
+
+    const category = normalizeCategoryName(item.product.categoria || '')
+    const categoryQuantity = categoryQuantities[category] || item.cantidad
+    const precio = getPedidoProductUnitPrice(item.product, categoryQuantity)
+
+    return {
+      id: item.id,
+      nombre: item.nombre,
+      cantidad: item.cantidad,
+      precio,
+      etiquetaPrecio: getPedidoPriceLabel(item.product, categoryQuantity)
+    }
+  })
 }
 
 const syncPedidoProductItems = () => {
@@ -2832,6 +2930,22 @@ const syncPedidoProductItems = () => {
   const productsInput = document.getElementById('pedido-products-json')
   const productsTotalInput = document.getElementById('pedido-total-productos')
   const total = items.reduce((sum, item) => sum + (item.cantidad * item.precio), 0)
+
+  items.forEach(item => {
+    const row = document.querySelector(`.pedido-product-item[data-product-id="${CSS.escape(String(item.id))}"]`)
+
+    if (row) {
+      row.dataset.price = String(item.precio)
+      row.querySelector('[data-pedido-product-price]').textContent = money(item.precio)
+      row.querySelector('[data-pedido-product-total]').textContent = money(item.cantidad * item.precio)
+      const label = row.querySelector('[data-pedido-product-label]')
+
+      if (label) {
+        label.textContent = item.etiquetaPrecio || ''
+        label.classList.toggle('hidden', !item.etiquetaPrecio)
+      }
+    }
+  })
 
   if (productsInput) {
     productsInput.value = JSON.stringify(items)
@@ -2866,20 +2980,21 @@ const addPedidoProductItem = () => {
 
   const quantity = Math.max(1, Math.floor(Number(quantityInput?.value) || 1))
   const productId = selectedOption.value
-  const productName = selectedOption.dataset.nombre || selectedOption.textContent.trim()
-  const productPrice = Number(selectedOption.dataset.precio || 0)
+  const product = productosState.find(producto => String(producto.id) === String(productId))
+  const productName = product?.nombre || selectedOption.dataset.nombre || selectedOption.textContent.trim()
+  const productPrice = product ? getPedidoProductUnitPrice(product, quantity) : 0
   const existingItem = list.querySelector(`[data-product-id="${CSS.escape(productId)}"]`)
 
   if (existingItem) {
     existingItem.dataset.quantity = String(Number(existingItem.dataset.quantity || 0) + quantity)
     existingItem.querySelector('[data-pedido-product-quantity]').textContent = existingItem.dataset.quantity
-    existingItem.querySelector('[data-pedido-product-total]').textContent = money(Number(existingItem.dataset.quantity) * productPrice)
   } else {
     list.insertAdjacentHTML('beforeend', `
       <article class="pedido-product-item" data-product-id="${escapeHtml(productId)}" data-product-name="${escapeHtml(productName)}" data-quantity="${escapeHtml(quantity)}" data-price="${escapeHtml(productPrice)}">
         <div>
           <strong>${escapeHtml(productName)}</strong>
-          <small><span data-pedido-product-quantity>${escapeHtml(quantity)}</span> x ${money(productPrice)}</small>
+          <small><span data-pedido-product-quantity>${escapeHtml(quantity)}</span> x <span data-pedido-product-price>${money(productPrice)}</span></small>
+          <small class="hidden" data-pedido-product-label></small>
         </div>
         <span data-pedido-product-total>${money(quantity * productPrice)}</span>
         <button class="icon-action-btn" type="button" data-pedido-product-action="remove" title="Quitar producto" aria-label="Quitar producto">&#128465;</button>

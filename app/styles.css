@@ -1767,6 +1767,8 @@ td small {
 }
 
 .custom-select-button {
+  position: relative;
+
   width: 100%;
 
   border: 1px solid rgba(17,24,39,0.08);
@@ -1819,9 +1821,10 @@ td small {
   white-space: nowrap;
 }
 
-.custom-select-arrow {
+.custom-select-button .custom-select-arrow {
   position: absolute;
   right: 20px;
+  top: 50%;
 
   width: 10px;
   height: 10px;
@@ -1829,13 +1832,13 @@ td small {
   border-right: 2px solid #6b7280;
   border-bottom: 2px solid #6b7280;
 
-  transform: translateY(-2px) rotate(45deg);
+  transform: translateY(-65%) rotate(45deg);
 
   transition: transform 0.2s;
 }
 
-.custom-select.open .custom-select-arrow {
-  transform: translateY(3px) rotate(225deg);
+.custom-select.open .custom-select-button .custom-select-arrow {
+  transform: translateY(-35%) rotate(225deg);
 }
 
 .custom-select-menu {

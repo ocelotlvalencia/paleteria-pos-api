@@ -105,6 +105,12 @@ const clearConfigurationAccess = () => {
     .forEach(permission => authorizedPermissions.delete(permission))
 }
 
+const closeConfigurationSession = () => {
+  clearConfigurationAccess()
+  closeCurrentModal()
+  closeCustomSelects()
+}
+
 const applyTheme = async (theme, options = {}) => {
   const normalizedTheme = theme === 'dark' ? 'dark' : 'light'
 
@@ -2287,7 +2293,7 @@ buttons.forEach(button => {
     }
 
     if (currentSection === 'configuracion' && targetSection !== 'configuracion') {
-      clearConfigurationAccess()
+      closeConfigurationSession()
     }
 
     buttons.forEach(btn => {

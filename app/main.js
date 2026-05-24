@@ -33,6 +33,9 @@ const DEFAULT_OPERATION_SETTINGS = {
     stockThresholds: {},
     defaultRawMaterialStockThreshold: '3',
     rawMaterialStockThresholds: {}
+  },
+  waste: {
+    enabledCategories: []
   }
 }
 const isProductionBuild = app.isPackaged
@@ -196,6 +199,13 @@ const readOperationSettingsFromConfig = () => {
           ...DEFAULT_OPERATION_SETTINGS.notifications.rawMaterialStockThresholds,
           ...(parsed.notifications?.rawMaterialStockThresholds || {})
         }
+      },
+      waste: {
+        ...DEFAULT_OPERATION_SETTINGS.waste,
+        ...(parsed.waste || {}),
+        enabledCategories: Array.isArray(parsed.waste?.enabledCategories)
+          ? parsed.waste.enabledCategories
+          : DEFAULT_OPERATION_SETTINGS.waste.enabledCategories
       }
     }
   } catch (error) {
@@ -227,6 +237,13 @@ const saveOperationSettingsToConfig = (settings) => {
       rawMaterialStockThresholds: Object.prototype.hasOwnProperty.call(settings?.notifications || {}, 'rawMaterialStockThresholds')
         ? settings.notifications.rawMaterialStockThresholds
         : currentSettings.notifications?.rawMaterialStockThresholds || {}
+    },
+    waste: {
+      ...currentSettings.waste,
+      ...(settings?.waste || {}),
+      enabledCategories: Object.prototype.hasOwnProperty.call(settings?.waste || {}, 'enabledCategories')
+        ? settings.waste.enabledCategories
+        : currentSettings.waste?.enabledCategories || []
     }
   }
 

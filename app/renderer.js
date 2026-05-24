@@ -11,6 +11,7 @@ const materiaContainer = document.getElementById('materia-container')
 const clientesContainer = document.getElementById('clientes-container')
 const pedidosContainer = document.getElementById('pedidos-container')
 const ventasContainer = document.getElementById('ventas-container')
+const mermasContainer = document.getElementById('mermas-container')
 const gastosContainer = document.getElementById('gastos-container')
 const proveedoresContainer = document.getElementById('proveedores-container')
 const cashTotalSales = document.getElementById('cash-total-sales')
@@ -68,6 +69,9 @@ const DEFAULT_OPERATION_SETTINGS = {
     stockThresholds: {},
     defaultRawMaterialStockThreshold: '3',
     rawMaterialStockThresholds: {}
+  },
+  waste: {
+    enabledCategories: []
   }
 }
 const RAW_MATERIAL_UNITS = ['Litros', 'Kilos', 'Gramos', 'Piezas']
@@ -85,6 +89,7 @@ const OPERATION_PERMISSION_BY_SETTING = {
   printer: 'configuracion.operacion',
   payments: 'configuracion.operacion',
   productCategories: 'configuracion.operacion',
+  wasteCategories: 'configuracion.operacion',
   notifications: 'configuracion.operacion',
   rawMaterialStock: 'configuracion.operacion'
 }
@@ -99,6 +104,7 @@ let materiaState = []
 let clientesState = []
 let pedidosState = []
 let ventasState = []
+let mermasState = []
 let gastosState = []
 let proveedoresState = []
 let ticketItems = []
@@ -193,6 +199,11 @@ const mergeOperationSettings = (settings = {}) => {
       .map(([unit, value]) => [normalizeCategoryName(unit), String(Math.max(0, Number(value) || 0))])
       .filter(([unit]) => unit)
   )
+  const enabledWasteCategories = Array.isArray(settings.waste?.enabledCategories)
+    ? settings.waste.enabledCategories
+      .map(category => normalizeCategoryName(category))
+      .filter(Boolean)
+    : DEFAULT_OPERATION_SETTINGS.waste.enabledCategories
 
   return {
     printer: {
@@ -215,6 +226,11 @@ const mergeOperationSettings = (settings = {}) => {
       stockThresholds,
       defaultRawMaterialStockThreshold: String(Math.max(0, Number(settings.notifications?.defaultRawMaterialStockThreshold ?? DEFAULT_OPERATION_SETTINGS.notifications.defaultRawMaterialStockThreshold) || 0)),
       rawMaterialStockThresholds: materialStockThresholds
+    },
+    waste: {
+      ...DEFAULT_OPERATION_SETTINGS.waste,
+      ...(settings.waste || {}),
+      enabledCategories: Array.from(new Set(enabledWasteCategories))
     }
   }
 }
@@ -260,6 +276,13 @@ const getNotificationCategories = () => {
     ...getProductCategories(),
     ...productosState.map(producto => producto.categoria || 'General')
   ])
+}
+
+const isWasteCategoryEnabled = (category) => {
+  const normalizedCategory = normalizeCategoryName(category || 'General').toLowerCase()
+  const enabledCategories = operationSettingsState.waste?.enabledCategories || []
+
+  return enabledCategories.some(item => normalizeCategoryName(item).toLowerCase() === normalizedCategory)
 }
 
 const getConfiguredThreshold = (thresholds = {}, key = '') => {
@@ -353,6 +376,13 @@ const saveOperationSettings = async (settings) => {
       rawMaterialStockThresholds: Object.prototype.hasOwnProperty.call(settings?.notifications || {}, 'rawMaterialStockThresholds')
         ? settings.notifications.rawMaterialStockThresholds
         : operationSettingsState.notifications?.rawMaterialStockThresholds || {}
+    },
+    waste: {
+      ...operationSettingsState.waste,
+      ...(settings?.waste || {}),
+      enabledCategories: Object.prototype.hasOwnProperty.call(settings?.waste || {}, 'enabledCategories')
+        ? settings.waste.enabledCategories
+        : operationSettingsState.waste?.enabledCategories || []
     }
   }
 
@@ -1683,6 +1713,30 @@ const renderVentas = (ventas) => {
   `).join('')
 }
 
+const renderMermas = (mermas) => {
+  mermasState = mermas
+
+  if (!mermasContainer) {
+    return
+  }
+
+  if (!mermas.length) {
+    setTableMessage(mermasContainer, 6, 'No hay mermas registradas')
+    return
+  }
+
+  mermasContainer.innerHTML = mermas.map(merma => `
+    <tr>
+      <td>${escapeHtml(formatDateTime(merma.createdAt))}</td>
+      <td>${escapeHtml(merma.productoNombre || 'Producto eliminado')}</td>
+      <td>${escapeHtml(merma.categoria || 'General')}</td>
+      <td>${escapeHtml(merma.cantidad)}</td>
+      <td>${escapeHtml(merma.motivo || 'Sin motivo')}</td>
+      <td>${escapeHtml(merma.stockRestante)}</td>
+    </tr>
+  `).join('')
+}
+
 const renderCorteCaja = (corte = {}) => {
   const totalVentas = Number(corte.totalVentas || 0)
   const totalGastos = Number(corte.totalGastos || 0)
@@ -1747,9 +1801,10 @@ const loadData = async () => {
       apiRequest('/api/clientes'),
       apiRequest('/api/proveedores'),
       apiRequest('/api/pedidos'),
-      apiRequest('/api/ventas')
+      apiRequest('/api/ventas'),
+      apiRequest('/api/mermas')
     ])
-    const [productosResult, categoriasResult, materiaResult, clientesResult, proveedoresResult, pedidosResult, ventasResult] = requests
+    const [productosResult, categoriasResult, materiaResult, clientesResult, proveedoresResult, pedidosResult, ventasResult, mermasResult] = requests
     const productos = productosResult.status === 'fulfilled' ? productosResult.value : null
     productCategoriesState = categoriasResult.status === 'fulfilled' ? categoriasResult.value : []
     const materiaPrima = materiaResult.status === 'fulfilled' ? materiaResult.value : null
@@ -1757,6 +1812,7 @@ const loadData = async () => {
     const proveedores = proveedoresResult.status === 'fulfilled' ? proveedoresResult.value : null
     const pedidos = pedidosResult.status === 'fulfilled' ? pedidosResult.value : null
     const ventas = ventasResult.status === 'fulfilled' ? ventasResult.value : null
+    const mermas = mermasResult.status === 'fulfilled' ? mermasResult.value : null
 
     if (productos) {
       renderProductos(productos)
@@ -1774,6 +1830,7 @@ const loadData = async () => {
     proveedores ? renderProveedores(proveedores) : setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
     pedidos ? renderPedidos(pedidos) : setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
     ventas ? renderVentas(ventas) : setTableMessage(ventasContainer, 5, 'No se pudieron cargar las ventas')
+    mermas ? renderMermas(mermas) : setTableMessage(mermasContainer, 6, 'No se pudieron cargar las mermas')
 
     try {
       renderCorteCaja(await apiRequest('/api/corte-caja'))
@@ -1799,6 +1856,7 @@ const loadData = async () => {
     setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
     setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
     setTableMessage(ventasContainer, 5, 'No se pudieron cargar las ventas')
+    setTableMessage(mermasContainer, 6, 'No se pudieron cargar las mermas')
     setTableMessage(gastosContainer, 6, 'No se pudieron cargar los gastos')
     renderCorteCaja()
   }
@@ -1928,6 +1986,19 @@ const renderProductModal = (producto = null) => {
       <div class="form-group">
         <label>Agregar stock</label>
         <input name="stockNuevo" type="number" min="0" step="1" placeholder="0" value="">
+      </div>
+
+      <div class="product-waste-fields ${isWasteCategoryEnabled(currentCategory || 'General') ? '' : 'hidden'}" id="producto-merma-fields">
+        <div class="form-group">
+          <label>Registrar merma</label>
+          <input name="stockMerma" type="number" min="0" step="1" placeholder="0" value="">
+          <small>Se descontar&aacute; del stock al guardar.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Motivo de merma</label>
+          <input name="motivoMerma" type="text" placeholder="Ej. Rota, echada a perder, caducada">
+        </div>
       </div>
 
       <button class="save-btn" type="submit">${isEditing ? 'Guardar cambios' : 'Guardar producto'}</button>
@@ -2440,6 +2511,37 @@ const renderNotificationSettingsModal = () => {
   `
 }
 
+const renderWasteCategorySettingsModal = () => {
+  const categories = getNotificationCategories()
+  const enabledCategories = operationSettingsState.waste?.enabledCategories || []
+
+  modalTitle.innerText = 'Configurar mermas'
+  modalBody.innerHTML = `
+    <form data-operation-form="wasteCategories">
+      <div class="settings-subsection">
+        <h3>Categor&iacute;as con merma</h3>
+        <div class="settings-category-list">
+          ${categories.length
+            ? categories.map(category => `
+                <label class="settings-toggle settings-category-toggle">
+                  <input name="wasteCategory" type="checkbox" value="${escapeHtml(category.name)}" ${enabledCategories.some(item => normalizeCategoryName(item).toLowerCase() === category.name.toLowerCase()) ? 'checked' : ''}>
+                  <span>${escapeHtml(category.name)}</span>
+                </label>
+              `).join('')
+            : `
+                <div class="empty-state">
+                  <h3>Sin categor&iacute;as</h3>
+                  <p>Agrega categor&iacute;as de productos para habilitar mermas.</p>
+                </div>
+              `}
+        </div>
+      </div>
+
+      <button class="save-btn" type="submit">Guardar mermas</button>
+    </form>
+  `
+}
+
 const renderRawMaterialStockSettingsModal = () => {
   const notifications = operationSettingsState.notifications || DEFAULT_OPERATION_SETTINGS.notifications
   const units = getRawMaterialUnits()
@@ -2561,6 +2663,10 @@ const openOperationSettingsModal = (type) => {
 
   if (type === 'productCategories') {
     renderProductCategoriesSettingsModal()
+  }
+
+  if (type === 'wasteCategories') {
+    renderWasteCategorySettingsModal()
   }
 
   if (type === 'notifications') {
@@ -2925,6 +3031,28 @@ cancelTicket.addEventListener('click', async () => {
 })
 
 modalBody.addEventListener('change', async (event) => {
+  if (event.target.name === 'categoria' && event.target.closest('form[data-resource="producto"]')) {
+    const wasteFields = document.getElementById('producto-merma-fields')
+
+    if (wasteFields) {
+      wasteFields.classList.toggle('hidden', !isWasteCategoryEnabled(event.target.value))
+      if (!isWasteCategoryEnabled(event.target.value)) {
+        const stockMerma = wasteFields.querySelector('[name="stockMerma"]')
+        const motivoMerma = wasteFields.querySelector('[name="motivoMerma"]')
+
+        if (stockMerma) {
+          stockMerma.value = ''
+        }
+
+        if (motivoMerma) {
+          motivoMerma.value = ''
+        }
+      }
+    }
+
+    return
+  }
+
   if (event.target.id === 'pedido-cliente-select') {
     const selectedOption = event.target.selectedOptions[0]
     const clienteInput = document.getElementById('pedido-cliente')
@@ -3364,6 +3492,21 @@ modalBody.addEventListener('submit', async (event) => {
     return
   }
 
+  if (operationForm === 'wasteCategories') {
+    const enabledCategories = formData.getAll('wasteCategory')
+      .map(category => normalizeCategoryName(category))
+      .filter(Boolean)
+
+    await saveOperationSettings({
+      waste: {
+        enabledCategories
+      }
+    })
+
+    closeCurrentModal()
+    return
+  }
+
   if (operationForm === 'rawMaterialStock') {
     const units = formData.getAll('rawMaterialUnit')
     const thresholds = formData.getAll('rawMaterialThreshold')
@@ -3411,13 +3554,36 @@ modalBody.addEventListener('submit', async (event) => {
   const resource = form.dataset.resource
   const isEditing = Boolean(form.dataset.id)
   const config = resourceConfig[resource]
+  let pendingProductWaste = null
 
   if (resource === 'producto') {
     const stockActual = Math.max(0, Math.floor(Number(data.stock) || 0))
     const stockNuevo = Math.max(0, Math.floor(Number(data.stockNuevo) || 0))
+    const stockMerma = isWasteCategoryEnabled(data.categoria)
+      ? Math.max(0, Math.floor(Number(data.stockMerma) || 0))
+      : 0
+    const availableStock = stockActual + stockNuevo
 
-    data.stock = String(stockActual + stockNuevo)
+    if (stockMerma > availableStock) {
+      await showAppDialog({
+        title: 'Merma mayor al stock',
+        message: 'La cantidad de merma no puede ser mayor al stock disponible.',
+        confirmText: 'Entendido',
+        showCancel: false
+      })
+      return
+    }
+
+    data.stock = String(availableStock)
+    pendingProductWaste = stockMerma > 0
+      ? {
+          cantidad: stockMerma,
+          motivo: data.motivoMerma?.trim() || 'Merma'
+        }
+      : null
     delete data.stockNuevo
+    delete data.stockMerma
+    delete data.motivoMerma
   }
 
   if (resource === 'materia') {
@@ -3453,6 +3619,17 @@ modalBody.addEventListener('submit', async (event) => {
     method: isEditing ? 'PUT' : 'POST',
     body: JSON.stringify(data)
   })
+
+  if (resource === 'producto' && pendingProductWaste) {
+    await apiRequest('/api/mermas', {
+      method: 'POST',
+      body: JSON.stringify({
+        productoId: savedRecord.id,
+        cantidad: pendingProductWaste.cantidad,
+        motivo: pendingProductWaste.motivo
+      })
+    })
+  }
 
   closeCurrentModal()
   await loadData()

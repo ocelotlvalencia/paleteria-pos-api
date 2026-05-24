@@ -40,6 +40,27 @@ model CategoriaProducto {
   createdAt   DateTime @default(now())
 }
 
+model MermaProducto {
+
+  id             Int      @id @default(autoincrement())
+
+  productoId     Int
+
+  productoNombre String
+
+  categoria      String   @default("General")
+
+  cantidad       Int
+
+  motivo         String?
+
+  stockRestante  Int
+
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 /* CLIENTES */
 
 model Cliente {

@@ -74,6 +74,11 @@
         <span>Ventas</span>
       </button>
 
+      <button class="category" data-section="mermas">
+        <span class="nav-icon">&#9851;</span>
+        <span>Mermas</span>
+      </button>
+
       <button class="category" data-section="corte-caja">
         <span class="nav-icon">&#128179;</span>
         <span>Corte de caja</span>
@@ -319,6 +324,49 @@
 
       </section>
 
+      <!-- MERMAS -->
+      <section class="section" id="mermas">
+
+        <div class="topbar">
+
+          <div>
+            <h1>Mermas</h1>
+            <span>Historial de productos desechados</span>
+          </div>
+
+        </div>
+
+        <div class="table-container">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Producto</th>
+                <th>Categor&iacute;a</th>
+                <th>Cantidad</th>
+                <th>Motivo</th>
+                <th>Stock restante</th>
+              </tr>
+            </thead>
+
+            <tbody id="mermas-container">
+
+              <tr class="empty-row">
+                <td colspan="6">
+                  No hay mermas registradas
+                </td>
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </section>
+
       <!-- CORTE DE CAJA -->
       <section class="section" id="corte-caja">
 
@@ -477,6 +525,11 @@
               <button class="setting-card setting-action-card" type="button" data-operation-setting="productCategories">
                 <h3><span class="card-icon">&#127991;</span> Categor&iacute;as</h3>
                 <p>Alta de categor&iacute;as para productos</p>
+              </button>
+
+              <button class="setting-card setting-action-card" type="button" data-operation-setting="wasteCategories">
+                <h3><span class="card-icon">&#9851;</span> Mermas</h3>
+                <p>Categor&iacute;as con producto de desecho</p>
               </button>
 
               <button class="setting-card setting-action-card" type="button" data-operation-setting="notifications">

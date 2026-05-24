@@ -50,6 +50,7 @@ const normalizeCategoryName = (value) => String(value || '').trim()
 
 let categoriaProductoStoragePromise = null
 let pedidoCanceladoAtStoragePromise = null
+let mermaProductoStoragePromise = null
 
 const ensureCategoriaProductoStorage = () => {
   if (!categoriaProductoStoragePromise) {
@@ -96,6 +97,32 @@ const ensurePedidoCanceladoAtStorage = () => {
   }
 
   return pedidoCanceladoAtStoragePromise
+}
+
+const ensureMermaProductoStorage = () => {
+  if (!mermaProductoStoragePromise) {
+    mermaProductoStoragePromise = prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "MermaProducto" (
+        "id" SERIAL NOT NULL,
+        "productoId" INTEGER NOT NULL,
+        "productoNombre" TEXT NOT NULL,
+        "categoria" TEXT NOT NULL DEFAULT 'General',
+        "cantidad" INTEGER NOT NULL,
+        "motivo" TEXT,
+        "stockRestante" INTEGER NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "MermaProducto_pkey" PRIMARY KEY ("id")
+      )
+    `).then(() => prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "MermaProducto_createdAt_idx"
+      ON "MermaProducto"("createdAt")
+    `)).catch(error => {
+      mermaProductoStoragePromise = null
+      throw error
+    })
+  }
+
+  return mermaProductoStoragePromise
 }
 
 const formatTicketNumber = (value) => {
@@ -263,6 +290,98 @@ app.delete('/api/productos/:id', asyncHandler(async (req, res) => {
   })
 
   res.status(204).send()
+}))
+
+app.get('/api/mermas', asyncHandler(async (req, res) => {
+  await ensureMermaProductoStorage()
+
+  const mermas = await prisma.$queryRaw`
+    SELECT
+      "id",
+      "productoId",
+      "productoNombre",
+      "categoria",
+      "cantidad",
+      "motivo",
+      "stockRestante",
+      "createdAt"
+    FROM "MermaProducto"
+    ORDER BY "createdAt" DESC
+  `
+
+  res.json(mermas)
+}))
+
+app.post('/api/mermas', asyncHandler(async (req, res) => {
+  await ensureMermaProductoStorage()
+
+  const productoId = toNumber(req.body.productoId)
+  const cantidad = Math.max(0, Math.floor(toNumber(req.body.cantidad)))
+  const motivo = normalizeCategoryName(req.body.motivo) || 'Merma'
+
+  if (!productoId || cantidad <= 0) {
+    res.status(400).json({ error: 'Producto y cantidad de merma son requeridos' })
+    return
+  }
+
+  const merma = await prisma.$transaction(async (tx) => {
+    const producto = await tx.producto.findUnique({
+      where: {
+        id: productoId
+      }
+    })
+
+    if (!producto) {
+      throw Object.assign(new Error('Producto no encontrado'), { statusCode: 404 })
+    }
+
+    if (cantidad > Number(producto.stock || 0)) {
+      throw Object.assign(new Error('La merma no puede ser mayor al stock disponible'), { statusCode: 400 })
+    }
+
+    const stockRestante = Math.max(0, Number(producto.stock || 0) - cantidad)
+
+    await tx.producto.update({
+      where: {
+        id: productoId
+      },
+      data: {
+        stock: stockRestante
+      }
+    })
+
+    const [createdMerma] = await tx.$queryRaw`
+      INSERT INTO "MermaProducto" (
+        "productoId",
+        "productoNombre",
+        "categoria",
+        "cantidad",
+        "motivo",
+        "stockRestante"
+      )
+      VALUES (
+        ${producto.id},
+        ${producto.nombre},
+        ${producto.categoria || 'General'},
+        ${cantidad},
+        ${motivo},
+        ${stockRestante}
+      )
+      RETURNING
+        "id",
+        "productoId",
+        "productoNombre",
+        "categoria",
+        "cantidad",
+        "motivo",
+        "stockRestante",
+        "createdAt"
+    `
+
+    return createdMerma
+  })
+
+  res.status(201).json(merma)
 }))
 
 app.get('/api/categorias-productos', asyncHandler(async (req, res) => {
@@ -999,8 +1118,10 @@ app.delete('/api/pedidos/:id', asyncHandler(async (req, res) => {
 app.use((error, req, res, next) => {
   console.error(error)
 
-  res.status(500).json({
-    error: 'Error interno del servidor'
+  const statusCode = Number(error.statusCode || 500)
+
+  res.status(statusCode).json({
+    error: statusCode === 500 ? 'Error interno del servidor' : error.message
   })
 })
 

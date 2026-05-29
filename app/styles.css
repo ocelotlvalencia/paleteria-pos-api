@@ -668,10 +668,6 @@ thead {
 }
 
 th {
-  position: sticky;
-  top: var(--section-header-height);
-  z-index: 12;
-
   background: #f7f7f8;
 
   text-align: left;

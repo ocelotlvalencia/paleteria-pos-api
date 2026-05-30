@@ -1036,6 +1036,7 @@ const resolveTicketClient = async () => {
 const renderTicketItem = (item) => {
   const unitPrice = getTicketUnitPrice(item)
   const wholesaleLabel = getWholesaleLabel(item)
+  const stock = Math.max(0, Math.floor(Number(item.stock || 0)))
 
   return `
     <article class="cart-item" data-ticket-id="${escapeHtml(item.id)}">
@@ -1047,7 +1048,7 @@ const renderTicketItem = (item) => {
       <div class="cart-item-actions">
         <div class="quantity-control">
           <button type="button" data-ticket-action="decrease" data-id="${escapeHtml(item.id)}">-</button>
-          <input type="number" min="1" step="1" value="${escapeHtml(item.cantidad)}" data-ticket-action="quantity" data-id="${escapeHtml(item.id)}">
+          <input type="number" min="1" max="${escapeHtml(stock)}" step="1" value="${escapeHtml(item.cantidad)}" data-ticket-action="quantity" data-id="${escapeHtml(item.id)}">
           <button type="button" data-ticket-action="increase" data-id="${escapeHtml(item.id)}">+</button>
         </div>
 
@@ -1557,8 +1558,42 @@ const renderTicket = () => {
   }
 }
 
-const addProductToTicket = (producto) => {
+const getProductAvailableStock = (producto) => {
+  return Math.max(0, Math.floor(Number(producto?.stock || 0)))
+}
+
+const showNoStockDialog = async (producto) => {
+  await showAppDialog({
+    title: 'Sin stock',
+    message: `No se puede agregar ${producto?.nombre || 'este producto'} al carrito porque no hay stock disponible.`,
+    confirmText: 'Entendido',
+    showCancel: false
+  })
+}
+
+const showStockLimitDialog = async (producto) => {
+  await showAppDialog({
+    title: 'Stock insuficiente',
+    message: `Solo hay ${getProductAvailableStock(producto)} piezas disponibles de ${producto?.nombre || 'este producto'}.`,
+    confirmText: 'Entendido',
+    showCancel: false
+  })
+}
+
+const addProductToTicket = async (producto) => {
+  const stock = getProductAvailableStock(producto)
   const existingItem = ticketItems.find(item => item.id === producto.id)
+  const currentQuantity = Number(existingItem?.cantidad || 0)
+
+  if (stock <= 0) {
+    await showNoStockDialog(producto)
+    return
+  }
+
+  if (currentQuantity >= stock) {
+    await showStockLimitDialog(producto)
+    return
+  }
 
   if (existingItem) {
     existingItem.cantidad += 1
@@ -1571,6 +1606,7 @@ const addProductToTicket = (producto) => {
       precioMayoreo: Number(producto.precioMayoreo || 0),
       cantidadMayoreo: Number(producto.cantidadMayoreo || 0),
       categoria: producto.categoria,
+      stock,
       cantidad: 1
     })
   }
@@ -1594,10 +1630,12 @@ const syncTicketProducts = () => {
         precioPremium: Number(producto.precioPremium || 0),
         precioMayoreo: Number(producto.precioMayoreo || 0),
         cantidadMayoreo: Number(producto.cantidadMayoreo || 0),
-        categoria: producto.categoria
+        categoria: producto.categoria,
+        stock: getProductAvailableStock(producto),
+        cantidad: Math.min(item.cantidad, getProductAvailableStock(producto))
       }
     })
-    .filter(Boolean)
+    .filter(item => item && item.cantidad > 0)
 
   renderTicket()
 }
@@ -2897,7 +2935,7 @@ ventasContainer.addEventListener('click', handleActionClick)
 gastosContainer.addEventListener('click', handleActionClick)
 proveedoresContainer.addEventListener('click', handleActionClick)
 
-productsContainer.addEventListener('click', (event) => {
+productsContainer.addEventListener('click', async (event) => {
   if (event.target.closest('[data-action]')) {
     return
   }
@@ -2911,11 +2949,11 @@ productsContainer.addEventListener('click', (event) => {
   const producto = productosState.find(item => String(item.id) === productCard.dataset.productId)
 
   if (producto) {
-    addProductToTicket(producto)
+    await addProductToTicket(producto)
   }
 })
 
-cartItemsContainer.addEventListener('click', (event) => {
+cartItemsContainer.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-ticket-action]')
 
   if (!button || button.dataset.ticketAction === 'quantity') {
@@ -2929,6 +2967,13 @@ cartItemsContainer.addEventListener('click', (event) => {
   }
 
   if (button.dataset.ticketAction === 'increase') {
+    const producto = productosState.find(product => product.id === item.id) || item
+
+    if (item.cantidad >= getProductAvailableStock(producto)) {
+      await showStockLimitDialog(producto)
+      return
+    }
+
     item.cantidad += 1
   }
 
@@ -2943,7 +2988,7 @@ cartItemsContainer.addEventListener('click', (event) => {
   renderTicket()
 })
 
-cartItemsContainer.addEventListener('input', (event) => {
+cartItemsContainer.addEventListener('input', async (event) => {
   if (event.target.dataset.ticketAction !== 'quantity') {
     return
   }
@@ -2954,7 +2999,22 @@ cartItemsContainer.addEventListener('input', (event) => {
     return
   }
 
-  item.cantidad = Math.max(1, Math.floor(Number(event.target.value) || 1))
+  const producto = productosState.find(product => product.id === item.id) || item
+  const stock = getProductAvailableStock(producto)
+  const requestedQuantity = Math.max(1, Math.floor(Number(event.target.value) || 1))
+
+  if (stock <= 0) {
+    await showNoStockDialog(producto)
+    ticketItems = ticketItems.filter(ticketItem => ticketItem.id !== item.id)
+    renderTicket()
+    return
+  }
+
+  if (requestedQuantity > stock) {
+    await showStockLimitDialog(producto)
+  }
+
+  item.cantidad = Math.min(requestedQuantity, stock)
   renderTicket()
 })
 

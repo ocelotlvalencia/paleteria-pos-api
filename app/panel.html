@@ -304,6 +304,8 @@
                 <th>M&eacute;todo</th>
                 <th>Productos</th>
                 <th>Total</th>
+                <th>Pag&oacute;</th>
+                <th>Cambio</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -311,7 +313,7 @@
             <tbody id="ventas-container">
 
               <tr class="empty-row">
-                <td colspan="5">
+                <td colspan="7">
                   No hay ventas registradas
                 </td>
               </tr>
@@ -605,6 +607,11 @@
           <span id="cart-total">$0.00</span>
         </div>
 
+        <div class="total-row">
+          <span>Cambio</span>
+          <span id="cart-change">$0.00</span>
+        </div>
+
       </div>
 
       <div class="cart-buttons">
@@ -646,6 +653,11 @@
             <option>Efectivo</option>
             <option>Tarjeta</option>
           </select>
+        </label>
+
+        <label class="payment-method">
+          <span>Pago recibido</span>
+          <input id="ticket-amount-received" type="number" min="0" step="0.01" placeholder="$0.00">
         </label>
 
         <button class="pay-btn cash" id="charge-ticket">

@@ -24,12 +24,14 @@ const systemStatus = document.getElementById('system-status')
 const statusText = document.getElementById('status-text')
 const cartItemsContainer = document.getElementById('cart-items')
 const cartTotal = document.getElementById('cart-total')
+const cartChange = document.getElementById('cart-change')
 const ticketNumber = document.getElementById('ticket-number')
 const ticketClientSelect = document.getElementById('ticket-client-select')
 const ticketClientName = document.getElementById('ticket-client-name')
 const ticketClientPhone = document.getElementById('ticket-client-phone')
 const ticketClientCategory = document.getElementById('ticket-client-category')
 const ticketPaymentMethod = document.getElementById('ticket-payment-method')
+const ticketAmountReceived = document.getElementById('ticket-amount-received')
 const chargeTicket = document.getElementById('charge-ticket')
 const cancelTicket = document.getElementById('cancel-ticket')
 const themeToggle = document.getElementById('theme-toggle')
@@ -734,6 +736,16 @@ const getTicketChargeTotal = (method = ticketPaymentMethod?.value) => {
   const subtotal = getTicketTotal()
 
   return subtotal + getPaymentFee(subtotal, method)
+}
+
+const getTicketAmountReceived = (total = getTicketChargeTotal()) => {
+  const received = Number(ticketAmountReceived?.value || 0)
+
+  return Number.isFinite(received) ? received : 0
+}
+
+const getTicketChange = (total = getTicketChargeTotal(), amountReceived = getTicketAmountReceived(total)) => {
+  return Math.max(amountReceived - total, 0)
 }
 
 const isTransferPaymentMethod = (method) => {
@@ -1469,10 +1481,11 @@ const buildPedidoTicket = (pedido) => {
   ].join('\n')
 }
 
-const buildVentaTicket = ({ id, metodoPago, items, total, tipo = 'TICKET DE COMPRA', concepto = '', cliente = null, telefono = null, createdAt = new Date().toISOString() }) => {
+const buildVentaTicket = ({ id, metodoPago, items, total, montoRecibido = null, cambio = null, tipo = 'TICKET DE COMPRA', concepto = '', cliente = null, telefono = null, createdAt = new Date().toISOString() }) => {
   const clienteNombre = typeof cliente === 'string' ? cliente : cliente?.nombre
   const clienteTelefono = telefono || (typeof cliente === 'string' ? '' : cliente?.telefono)
   const ticketType = tipo === 'Venta' ? 'TICKET DE COMPRA' : tipo
+  const hasPaymentDetails = montoRecibido !== null && montoRecibido !== undefined
 
   return [
     operationSettingsState.printer.header || 'PALETERIA NOPALUCAN',
@@ -1491,6 +1504,8 @@ const buildVentaTicket = ({ id, metodoPago, items, total, tipo = 'TICKET DE COMP
       ? `Ajuste: ${money(Number(total || 0) - items.reduce((sum, item) => sum + Number(item.total || 0), 0))}`
       : '',
     `Total: ${money(total)}`,
+    hasPaymentDetails ? `Pago recibido: ${money(montoRecibido)}` : '',
+    hasPaymentDetails ? `Cambio: ${money(cambio)}` : '',
     '',
     operationSettingsState.printer.footer || 'Gracias por su compra.'
   ].filter(Boolean).join('\n')
@@ -1511,6 +1526,8 @@ const buildTicketPreview = ({ header, footer }) => {
     `1 x Bote nuez ${money(210)}`,
     '',
     `Total: ${money(230)}`,
+    `Pago recibido: ${money(250)}`,
+    `Cambio: ${money(20)}`,
     '',
     footer || DEFAULT_OPERATION_SETTINGS.printer.footer
   ].filter(Boolean).join('\n')
@@ -1532,8 +1549,12 @@ const renderTicket = () => {
     return sum + getTicketUnitPrice(item) * item.cantidad
   }, 0)
   const total = subtotal + getPaymentFee(subtotal)
+  const amountReceived = getTicketAmountReceived(total)
 
   cartTotal.innerText = money(total)
+  if (cartChange) {
+    cartChange.innerText = money(getTicketChange(total, amountReceived))
+  }
 }
 
 const addProductToTicket = (producto) => {
@@ -1694,7 +1715,7 @@ const renderVentas = (ventas) => {
   renderNextTicketNumber()
 
   if (!ventas.length) {
-    setTableMessage(ventasContainer, 5, 'No hay ventas registradas')
+    setTableMessage(ventasContainer, 7, 'No hay ventas registradas')
     return
   }
 
@@ -1708,6 +1729,8 @@ const renderVentas = (ventas) => {
       </td>
       <td>${escapeHtml(summarizeItems(venta.items))}</td>
       <td>${money(venta.total)}</td>
+      <td>${venta.montoRecibido === null || venta.montoRecibido === undefined ? 'Sin registro' : money(venta.montoRecibido)}</td>
+      <td>${venta.cambio === null || venta.cambio === undefined ? 'Sin registro' : money(venta.cambio)}</td>
       <td>${renderActionButtons('venta', venta.id)}</td>
     </tr>
   `).join('')
@@ -1829,7 +1852,7 @@ const loadData = async () => {
     clientes ? renderClientes(clientes) : setTableMessage(clientesContainer, 4, 'No se pudieron cargar los clientes')
     proveedores ? renderProveedores(proveedores) : setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
     pedidos ? renderPedidos(pedidos) : setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
-    ventas ? renderVentas(ventas) : setTableMessage(ventasContainer, 5, 'No se pudieron cargar las ventas')
+    ventas ? renderVentas(ventas) : setTableMessage(ventasContainer, 7, 'No se pudieron cargar las ventas')
     mermas ? renderMermas(mermas) : setTableMessage(mermasContainer, 6, 'No se pudieron cargar las mermas')
 
     try {
@@ -1855,7 +1878,7 @@ const loadData = async () => {
     setTableMessage(clientesContainer, 4, 'No se pudieron cargar los clientes')
     setTableMessage(proveedoresContainer, 6, 'No se pudieron cargar los proveedores')
     setTableMessage(pedidosContainer, 6, 'No se pudieron cargar los pedidos')
-    setTableMessage(ventasContainer, 5, 'No se pudieron cargar las ventas')
+    setTableMessage(ventasContainer, 7, 'No se pudieron cargar las ventas')
     setTableMessage(mermasContainer, 6, 'No se pudieron cargar las mermas')
     setTableMessage(gastosContainer, 6, 'No se pudieron cargar los gastos')
     renderCorteCaja()
@@ -2945,6 +2968,7 @@ ticketPaymentMethod?.addEventListener('change', async () => {
   renderTicket()
   await showTransferDataIfNeeded()
 })
+ticketAmountReceived?.addEventListener('input', renderTicket)
 
 chargeTicket.addEventListener('click', async () => {
   if (!ticketItems.length) {
@@ -2969,6 +2993,19 @@ chargeTicket.addEventListener('click', async () => {
 
   const items = getTicketItems()
   const total = getTicketChargeTotal(metodoPago)
+  const montoRecibido = getTicketAmountReceived(total)
+  const cambio = getTicketChange(total, montoRecibido)
+
+  if (montoRecibido < total) {
+    await showAppDialog({
+      title: 'Pago incompleto',
+      message: `El total es ${money(total)} y el pago recibido es ${money(montoRecibido)}.`,
+      confirmText: 'Entendido',
+      showCancel: false
+    })
+    return
+  }
+
   const pendingVenta = {
     id: null,
     metodoPago,
@@ -2977,7 +3014,9 @@ chargeTicket.addEventListener('click', async () => {
     cliente,
     telefono: cliente?.telefono || null,
     items,
-    total
+    total,
+    montoRecibido,
+    cambio
   }
   const ticket = buildVentaTicket(pendingVenta)
   const venta = await apiRequest('/api/ventas', {
@@ -2991,6 +3030,8 @@ chargeTicket.addEventListener('click', async () => {
       cliente: cliente?.nombre || null,
       telefono: cliente?.telefono || null,
       items,
+      montoRecibido,
+      cambio,
       ticket
     })
   })
@@ -3002,6 +3043,9 @@ chargeTicket.addEventListener('click', async () => {
   })
 
   ticketItems = []
+  if (ticketAmountReceived) {
+    ticketAmountReceived.value = ''
+  }
   transferDataShownForCurrentSelection = false
   resetTicketClient()
   renderTicket()
@@ -3025,6 +3069,9 @@ cancelTicket.addEventListener('click', async () => {
   }
 
   ticketItems = []
+  if (ticketAmountReceived) {
+    ticketAmountReceived.value = ''
+  }
   transferDataShownForCurrentSelection = false
   resetTicketClient()
   renderTicket()

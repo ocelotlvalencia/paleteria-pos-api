@@ -51,6 +51,7 @@ const normalizeCategoryName = (value) => String(value || '').trim()
 let categoriaProductoStoragePromise = null
 let pedidoCanceladoAtStoragePromise = null
 let mermaProductoStoragePromise = null
+let ventaPaymentStoragePromise = null
 
 const ensureCategoriaProductoStorage = () => {
   if (!categoriaProductoStoragePromise) {
@@ -125,6 +126,21 @@ const ensureMermaProductoStorage = () => {
   return mermaProductoStoragePromise
 }
 
+const ensureVentaPaymentStorage = () => {
+  if (!ventaPaymentStoragePromise) {
+    ventaPaymentStoragePromise = prisma.$executeRawUnsafe(`
+      ALTER TABLE "Venta"
+      ADD COLUMN IF NOT EXISTS "montoRecibido" DOUBLE PRECISION,
+      ADD COLUMN IF NOT EXISTS "cambio" DOUBLE PRECISION
+    `).catch(error => {
+      ventaPaymentStoragePromise = null
+      throw error
+    })
+  }
+
+  return ventaPaymentStoragePromise
+}
+
 const formatTicketNumber = (value) => {
   const ticketId = Math.max(0, Math.floor(Number(value) || 0))
 
@@ -147,7 +163,9 @@ const buildPedidoItems = (pedido, concepto, total) => {
   }]
 }
 
-const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [], total, concepto, cliente, telefono }) => {
+const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [], total, montoRecibido = null, cambio = null, concepto, cliente, telefono }) => {
+  const hasPaymentDetails = montoRecibido !== null && montoRecibido !== undefined
+
   return [
     'PALETERIA NOPALUCAN',
     title,
@@ -161,6 +179,8 @@ const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [
     ...items.map(item => `${item.cantidad} x ${item.nombre} $${Number(item.total || 0).toFixed(2)}`),
     '',
     `Total: $${Number(total || 0).toFixed(2)}`,
+    hasPaymentDetails ? `Pago recibido: $${Number(montoRecibido || 0).toFixed(2)}` : '',
+    hasPaymentDetails ? `Cambio: $${Number(cambio || 0).toFixed(2)}` : '',
     '',
     'Gracias.'
   ].filter(Boolean).join('\n')
@@ -186,6 +206,8 @@ const cleanupCanceledPedidos = async () => {
 }
 
 const createPedidoVenta = async ({ pedido, tipo, concepto, total, metodoPago }) => {
+  await ensureVentaPaymentStorage()
+
   const items = buildPedidoItems(pedido, concepto, total)
 
   let venta = await prisma.venta.create({
@@ -758,6 +780,8 @@ app.delete('/api/usuarios/:id', asyncHandler(async (req, res) => {
 }))
 
 app.get('/api/ventas', asyncHandler(async (req, res) => {
+  await ensureVentaPaymentStorage()
+
   const ventas = await prisma.venta.findMany({
     orderBy: { createdAt: 'desc' }
   })
@@ -766,10 +790,22 @@ app.get('/api/ventas', asyncHandler(async (req, res) => {
 }))
 
 app.post('/api/ventas', asyncHandler(async (req, res) => {
+  await ensureVentaPaymentStorage()
+
   const items = Array.isArray(req.body.items) ? req.body.items : []
+  const total = toNumber(req.body.total)
+  const montoRecibido = req.body.montoRecibido === undefined || req.body.montoRecibido === null
+    ? null
+    : toNumber(req.body.montoRecibido)
+  const cambio = req.body.cambio === undefined || req.body.cambio === null
+    ? null
+    : toNumber(req.body.cambio)
+
   let venta = await prisma.venta.create({
     data: {
-      total: toNumber(req.body.total),
+      total,
+      montoRecibido,
+      cambio,
       metodoPago: req.body.metodoPago || 'Efectivo',
       tipo: req.body.tipo || 'Venta',
       concepto: req.body.concepto || null,
@@ -787,7 +823,9 @@ app.post('/api/ventas', asyncHandler(async (req, res) => {
     id: venta.id,
     metodoPago: req.body.metodoPago || 'Efectivo',
     items,
-    total: toNumber(req.body.total),
+    total,
+    montoRecibido,
+    cambio,
     concepto: req.body.concepto,
     cliente: req.body.cliente,
     telefono: req.body.telefono

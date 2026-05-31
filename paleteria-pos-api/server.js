@@ -186,6 +186,70 @@ const buildTicketText = ({ title = 'TICKET DE COMPRA', id, metodoPago, items = [
   ].filter(Boolean).join('\n')
 }
 
+const getSaleProductItems = (items = []) => {
+  const totals = new Map()
+
+  items.forEach(item => {
+    const productId = toOptionalNumber(item?.id)
+    const quantity = Math.max(0, Math.floor(toNumber(item?.cantidad)))
+
+    if (!productId || quantity <= 0) {
+      return
+    }
+
+    totals.set(productId, (totals.get(productId) || 0) + quantity)
+  })
+
+  return Array.from(totals.entries()).map(([productId, quantity]) => ({
+    productId,
+    quantity
+  }))
+}
+
+const discountSaleStock = async (tx, items = []) => {
+  const productItems = getSaleProductItems(items)
+
+  for (const item of productItems) {
+    const product = await tx.producto.findUnique({
+      where: {
+        id: item.productId
+      }
+    })
+
+    if (!product) {
+      throw Object.assign(new Error('Producto no encontrado en el ticket'), { statusCode: 404 })
+    }
+
+    if (Number(product.stock || 0) < item.quantity) {
+      throw Object.assign(
+        new Error(`No hay stock suficiente de ${product.nombre}. Disponible: ${product.stock}`),
+        { statusCode: 400 }
+      )
+    }
+
+    const updated = await tx.producto.updateMany({
+      where: {
+        id: item.productId,
+        stock: {
+          gte: item.quantity
+        }
+      },
+      data: {
+        stock: {
+          decrement: item.quantity
+        }
+      }
+    })
+
+    if (updated.count !== 1) {
+      throw Object.assign(
+        new Error(`No hay stock suficiente de ${product.nombre}. Disponible: ${product.stock}`),
+        { statusCode: 400 }
+      )
+    }
+  }
+}
+
 const getPedidoCanceladoAt = (estado, previousCanceladoAt = null) => {
   return estado === 'Cancelado' ? previousCanceladoAt || new Date() : null
 }
@@ -800,26 +864,34 @@ app.post('/api/ventas', asyncHandler(async (req, res) => {
   const cambio = req.body.cambio === undefined || req.body.cambio === null
     ? null
     : toNumber(req.body.cambio)
+  const tipo = req.body.tipo || 'Venta'
+  const shouldDiscountStock = tipo === 'Venta' || !req.body.tipo
 
-  let venta = await prisma.venta.create({
-    data: {
-      total,
-      montoRecibido,
-      cambio,
-      metodoPago: req.body.metodoPago || 'Efectivo',
-      tipo: req.body.tipo || 'Venta',
-      concepto: req.body.concepto || null,
-      clienteId: toOptionalNumber(req.body.clienteId),
-      cliente: req.body.cliente || null,
-      telefono: req.body.telefono || null,
-      pedidoId: toOptionalNumber(req.body.pedidoId),
-      items,
-      ticket: null
+  let venta = await prisma.$transaction(async (tx) => {
+    if (shouldDiscountStock) {
+      await discountSaleStock(tx, items)
     }
+
+    return tx.venta.create({
+      data: {
+        total,
+        montoRecibido,
+        cambio,
+        metodoPago: req.body.metodoPago || 'Efectivo',
+        tipo,
+        concepto: req.body.concepto || null,
+        clienteId: toOptionalNumber(req.body.clienteId),
+        cliente: req.body.cliente || null,
+        telefono: req.body.telefono || null,
+        pedidoId: toOptionalNumber(req.body.pedidoId),
+        items,
+        ticket: null
+      }
+    })
   })
 
   const ticket = req.body.ticket || buildTicketText({
-    title: req.body.ticketTitle || (req.body.tipo === 'Venta' || !req.body.tipo ? 'TICKET DE COMPRA' : req.body.tipo),
+    title: req.body.ticketTitle || (tipo === 'Venta' ? 'TICKET DE COMPRA' : tipo),
     id: venta.id,
     metodoPago: req.body.metodoPago || 'Efectivo',
     items,

@@ -431,7 +431,9 @@ const apiRequest = async (path, options = {}) => {
   })
 
   if (!response.ok) {
-    throw new Error(`Error ${response.status}`)
+    const errorData = await response.json().catch(() => ({}))
+
+    throw new Error(errorData.error || `Error ${response.status}`)
   }
 
   if (response.status === 204) {
@@ -3079,22 +3081,35 @@ chargeTicket.addEventListener('click', async () => {
     cambio
   }
   const ticket = buildVentaTicket(pendingVenta)
-  const venta = await apiRequest('/api/ventas', {
-    method: 'POST',
-    body: JSON.stringify({
-      total,
-      metodoPago,
-      tipo: 'Venta',
-      concepto: 'Venta de mostrador',
-      clienteId: cliente?.id || null,
-      cliente: cliente?.nombre || null,
-      telefono: cliente?.telefono || null,
-      items,
-      montoRecibido,
-      cambio,
-      ticket
+  let venta
+
+  try {
+    venta = await apiRequest('/api/ventas', {
+      method: 'POST',
+      body: JSON.stringify({
+        total,
+        metodoPago,
+        tipo: 'Venta',
+        concepto: 'Venta de mostrador',
+        clienteId: cliente?.id || null,
+        cliente: cliente?.nombre || null,
+        telefono: cliente?.telefono || null,
+        items,
+        montoRecibido,
+        cambio,
+        ticket
+      })
     })
-  })
+  } catch (error) {
+    await showAppDialog({
+      title: 'No se pudo cobrar',
+      message: error.message || 'Revisa el stock disponible e intenta de nuevo.',
+      confirmText: 'Entendido',
+      showCancel: false
+    })
+    await loadData()
+    return
+  }
 
   const isPrinterMode = operationSettingsState.printer.deliveryMode === 'printer'
 

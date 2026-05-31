@@ -111,6 +111,7 @@ let gastosState = []
 let proveedoresState = []
 let ticketItems = []
 let apiUrlState = DEFAULT_API_URL
+let apiKeyState = ''
 let configPathState = ''
 let operationSettingsState = JSON.parse(JSON.stringify(DEFAULT_OPERATION_SETTINGS))
 let productCategoriesState = []
@@ -404,12 +405,14 @@ const initConfig = async () => {
     return
   }
 
-  const [apiUrl, configPath] = await Promise.all([
+  const [apiUrl, apiKey, configPath] = await Promise.all([
     window.appConfig.getApiUrl(),
+    window.appConfig.getApiKey ? window.appConfig.getApiKey() : '',
     window.appConfig.getConfigPath()
   ])
 
   apiUrlState = LEGACY_LOCAL_API_URLS.has(apiUrl) ? DEFAULT_API_URL : apiUrl
+  apiKeyState = apiKey || ''
   configPathState = configPath
 
   if (window.appConfig.getOperationSettings) {
@@ -423,11 +426,15 @@ const getApiUrl = () => {
 }
 
 const apiRequest = async (path, options = {}) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(apiKeyState ? { 'X-API-Key': apiKeyState } : {}),
+    ...(options.headers || {})
+  }
+
   const response = await fetch(`${getApiUrl()}${path}`, {
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    ...options
+    ...options,
+    headers
   })
 
   if (!response.ok) {
@@ -1953,6 +1960,17 @@ const renderApiSettings = () => {
           >
         </div>
 
+        <div class="form-group">
+          <label>API key</label>
+          <input
+            type="password"
+            name="apiKey"
+            value="${escapeHtml(apiKeyState)}"
+            placeholder="Opcional"
+          >
+          <small>Usala solo si configuraste API_ACCESS_TOKEN en Vercel.</small>
+        </div>
+
         <small>Archivo: ${escapeHtml(configPathState || 'paleteria-pos.config')}</small>
 
         <button class="save-btn" type="submit">
@@ -1966,10 +1984,14 @@ const renderApiSettings = () => {
 
       const formData = new FormData(event.currentTarget)
       const apiUrl = formData.get('apiUrl').trim()
+      const apiKey = formData.get('apiKey').trim()
 
       apiUrlState = window.appConfig
         ? await window.appConfig.setApiUrl(apiUrl)
         : apiUrl.replace(/\/$/, '')
+      apiKeyState = window.appConfig?.setApiKey
+        ? await window.appConfig.setApiKey(apiKey)
+        : apiKey
 
       closeCurrentModal()
       await loadData()

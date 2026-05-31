@@ -12,8 +12,57 @@ const adapter = new PrismaNeon({
 })
 const prisma = new PrismaClient({ adapter })
 
-app.use(cors())
+const API_ACCESS_TOKEN = String(process.env.API_ACCESS_TOKEN || process.env.API_KEY || '').trim()
+const allowedOrigins = String(process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean)
+const authAttempts = new Map()
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('Referrer-Policy', 'no-referrer')
+  res.setHeader('X-Frame-Options', 'DENY')
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
+  next()
+})
+
+app.use(cors({
+  origin(origin, callback) {
+    const isElectronFileOrigin = origin === 'null' || String(origin || '').startsWith('file://')
+
+    if (!allowedOrigins.length || !origin || isElectronFileOrigin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+      return
+    }
+
+    callback(new Error('Origen no permitido por CORS'))
+  }
+}))
 app.use(express.json({ limit: '6mb' }))
+
+app.use((req, res, next) => {
+  if (!API_ACCESS_TOKEN || req.method === 'OPTIONS' || req.path === '/' || req.path === '/api/health') {
+    next()
+    return
+  }
+
+  const authHeader = String(req.get('authorization') || '')
+  const bearerToken = authHeader.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice(7).trim()
+    : ''
+  const apiKey = String(req.get('x-api-key') || bearerToken || '').trim()
+  const expected = Buffer.from(API_ACCESS_TOKEN)
+  const received = Buffer.from(apiKey)
+  const isValid = expected.length === received.length && crypto.timingSafeEqual(expected, received)
+
+  if (!isValid) {
+    res.status(401).json({ error: 'API key requerida o invalida' })
+    return
+  }
+
+  next()
+})
 
 const asyncHandler = (handler) => async (req, res, next) => {
   try {
@@ -39,14 +88,75 @@ const toOptionalNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-const hashPassword = (password) => {
+const hashLegacyPassword = (password) => {
   return crypto
     .createHash('sha256')
     .update(String(password || ''))
     .digest('hex')
 }
 
+const hashPassword = (password) => {
+  const salt = crypto.randomBytes(16).toString('hex')
+  const iterations = 120000
+  const key = crypto
+    .pbkdf2Sync(String(password || ''), salt, iterations, 32, 'sha256')
+    .toString('hex')
+
+  return `pbkdf2$sha256$${iterations}$${salt}$${key}`
+}
+
+const verifyPassword = (password, storedHash = '') => {
+  const hash = String(storedHash || '')
+
+  if (hash.startsWith('pbkdf2$sha256$')) {
+    const [, , iterationsValue, salt, key] = hash.split('$')
+    const iterations = Math.max(1, Math.floor(Number(iterationsValue) || 0))
+    const expected = Buffer.from(String(key || ''), 'hex')
+
+    if (!salt || !expected.length) {
+      return false
+    }
+
+    const received = crypto.pbkdf2Sync(String(password || ''), salt, iterations, expected.length, 'sha256')
+
+    return expected.length === received.length && crypto.timingSafeEqual(expected, received)
+  }
+
+  const legacyHash = Buffer.from(hashLegacyPassword(password))
+  const stored = Buffer.from(hash)
+
+  return legacyHash.length === stored.length && crypto.timingSafeEqual(legacyHash, stored)
+}
+
 const normalizeCategoryName = (value) => String(value || '').trim()
+
+const getClientKey = (req) => {
+  return String(req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
+    .split(',')[0]
+    .trim()
+}
+
+const checkAuthRateLimit = (req) => {
+  const windowMs = 15 * 60 * 1000
+  const maxAttempts = 8
+  const now = Date.now()
+  const key = getClientKey(req)
+  const record = authAttempts.get(key) || { count: 0, resetAt: now + windowMs }
+
+  if (record.resetAt <= now) {
+    record.count = 0
+    record.resetAt = now + windowMs
+  }
+
+  record.count += 1
+  authAttempts.set(key, record)
+
+  return record.count <= maxAttempts
+}
+
+const clearAuthRateLimit = (req) => {
+  authAttempts.delete(getClientKey(req))
+}
 
 let categoriaProductoStoragePromise = null
 let pedidoCanceladoAtStoragePromise = null
@@ -797,6 +907,11 @@ app.put('/api/usuarios/:id', asyncHandler(async (req, res) => {
 }))
 
 app.post('/api/auth/verify', asyncHandler(async (req, res) => {
+  if (!checkAuthRateLimit(req)) {
+    res.status(429).json({ ok: false, error: 'Demasiados intentos. Intenta de nuevo mas tarde.' })
+    return
+  }
+
   const nombre = String(req.body.nombre || '').trim()
   const password = String(req.body.password || '').trim()
   const permiso = String(req.body.permiso || '').trim()
@@ -806,9 +921,22 @@ app.post('/api/auth/verify', asyncHandler(async (req, res) => {
     }
   })
 
-  if (!usuario || usuario.passwordHash !== hashPassword(password)) {
+  if (!usuario || !verifyPassword(password, usuario.passwordHash)) {
     res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos' })
     return
+  }
+
+  clearAuthRateLimit(req)
+
+  if (!String(usuario.passwordHash || '').startsWith('pbkdf2$sha256$')) {
+    await prisma.usuario.update({
+      where: {
+        id: usuario.id
+      },
+      data: {
+        passwordHash: hashPassword(password)
+      }
+    })
   }
 
   const permisos = Array.isArray(usuario.permisos) ? usuario.permisos : []

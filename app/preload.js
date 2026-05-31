@@ -6,8 +6,10 @@ contextBridge.exposeInMainWorld('appInfo', {
 
 contextBridge.exposeInMainWorld('appConfig', {
   getApiUrl: () => ipcRenderer.invoke('config:get-api-url'),
+  getApiKey: () => ipcRenderer.invoke('config:get-api-key'),
   getConfigPath: () => ipcRenderer.invoke('config:get-path'),
   setApiUrl: (apiUrl) => ipcRenderer.invoke('config:set-api-url', apiUrl),
+  setApiKey: (apiKey) => ipcRenderer.invoke('config:set-api-key', apiKey),
   getTheme: () => ipcRenderer.invoke('config:get-theme'),
   setTheme: (theme) => ipcRenderer.invoke('config:set-theme', theme),
   getOperationSettings: () => ipcRenderer.invoke('config:get-operation-settings'),

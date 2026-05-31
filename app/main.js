@@ -4,6 +4,7 @@ const path = require('path')
 
 let mainWindow
 const DEFAULT_API_URL = 'https://paleteria-pos-api.vercel.app'
+const DEFAULT_API_KEY = ''
 const DEFAULT_THEME = 'light'
 const DEFAULT_OPERATION_SETTINGS = {
   printer: {
@@ -66,7 +67,7 @@ const ensureConfigFile = () => {
       if (legacyPackagedPath && fs.existsSync(legacyPackagedPath)) {
         fs.copyFileSync(legacyPackagedPath, configPath)
       } else {
-        fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\nOPERATION_SETTINGS=${encodeURIComponent(JSON.stringify(DEFAULT_OPERATION_SETTINGS))}\n`, 'utf8')
+        fs.writeFileSync(configPath, `API_URL=${DEFAULT_API_URL}\nAPI_KEY=${DEFAULT_API_KEY}\nTHEME=${DEFAULT_THEME}\nOPERATION_SETTINGS=${encodeURIComponent(JSON.stringify(DEFAULT_OPERATION_SETTINGS))}\n`, 'utf8')
       }
     } catch (error) {
       if (!fs.existsSync(fallbackDirectory)) {
@@ -74,7 +75,7 @@ const ensureConfigFile = () => {
       }
 
       if (!fs.existsSync(fallbackPath)) {
-        fs.writeFileSync(fallbackPath, `API_URL=${DEFAULT_API_URL}\nTHEME=${DEFAULT_THEME}\nOPERATION_SETTINGS=${encodeURIComponent(JSON.stringify(DEFAULT_OPERATION_SETTINGS))}\n`, 'utf8')
+        fs.writeFileSync(fallbackPath, `API_URL=${DEFAULT_API_URL}\nAPI_KEY=${DEFAULT_API_KEY}\nTHEME=${DEFAULT_THEME}\nOPERATION_SETTINGS=${encodeURIComponent(JSON.stringify(DEFAULT_OPERATION_SETTINGS))}\n`, 'utf8')
       }
 
       return fallbackPath
@@ -105,6 +106,7 @@ const saveConfig = (nextConfig) => {
   const configPath = ensureConfigFile()
   const config = {
     API_URL: DEFAULT_API_URL,
+    API_KEY: DEFAULT_API_KEY,
     THEME: DEFAULT_THEME,
     OPERATION_SETTINGS: encodeURIComponent(JSON.stringify(DEFAULT_OPERATION_SETTINGS)),
     ...readConfig(),
@@ -140,13 +142,38 @@ const readApiUrlFromConfig = () => {
 }
 
 const saveApiUrlToConfig = (apiUrl) => {
-  const normalizedUrl = String(apiUrl || DEFAULT_API_URL).trim().replace(/\/$/, '')
+  const rawUrl = String(apiUrl || DEFAULT_API_URL).trim().replace(/\/$/, '')
+  let normalizedUrl = DEFAULT_API_URL
+
+  try {
+    const parsedUrl = new URL(rawUrl)
+
+    if (['http:', 'https:'].includes(parsedUrl.protocol)) {
+      normalizedUrl = rawUrl
+    }
+  } catch (error) {
+    normalizedUrl = DEFAULT_API_URL
+  }
 
   saveConfig({
-    API_URL: normalizedUrl || DEFAULT_API_URL
+    API_URL: normalizedUrl
   })
 
-  return normalizedUrl || DEFAULT_API_URL
+  return normalizedUrl
+}
+
+const readApiKeyFromConfig = () => {
+  return readConfig().API_KEY || DEFAULT_API_KEY
+}
+
+const saveApiKeyToConfig = (apiKey) => {
+  const normalizedApiKey = String(apiKey || '').trim()
+
+  saveConfig({
+    API_KEY: normalizedApiKey
+  })
+
+  return normalizedApiKey
 }
 
 const readThemeFromConfig = () => {
@@ -303,8 +330,10 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   ipcMain.handle('config:get-api-url', () => readApiUrlFromConfig())
+  ipcMain.handle('config:get-api-key', () => readApiKeyFromConfig())
   ipcMain.handle('config:get-path', () => ensureConfigFile())
   ipcMain.handle('config:set-api-url', (event, apiUrl) => saveApiUrlToConfig(apiUrl))
+  ipcMain.handle('config:set-api-key', (event, apiKey) => saveApiKeyToConfig(apiKey))
   ipcMain.handle('config:get-theme', () => readThemeFromConfig())
   ipcMain.handle('config:set-theme', (event, theme) => saveThemeToConfig(theme))
   ipcMain.handle('config:get-operation-settings', () => readOperationSettingsFromConfig())
